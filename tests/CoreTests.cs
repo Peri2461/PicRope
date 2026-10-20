@@ -127,6 +127,61 @@ namespace ScreenLine.Tests
                 gallery.Add(file, image);
                 Check(gallery.Items.Count == 1);
             });
+            Run("只收集的图片不会挂上，取下后仍在图片篓", delegate
+            {
+                var store = new StateStore(Path.Combine(root, "basket-profile"));
+                var gallery = new Gallery(store);
+                string file = WritePicture("待挂.png", 100);
+                var item = gallery.Collect(file, ImageContent.Read(file));
+                Check(gallery.Items.Count == 0 && gallery.Collected.Single() == item);
+                gallery.Add(file, item.Image);
+                Check(gallery.Items.Single() == item && gallery.Collected.Count == 1);
+                gallery.Remove(item);
+                Check(gallery.Items.Count == 0 && gallery.Collected.Single() == item && File.Exists(file));
+                var restored = new StateStore(store.Root);
+                Check(restored.State.Images.Count == 0 && restored.State.Collection.Single() == file);
+            });
+            Run("绳子达到上限后仍保留所有收集记录", delegate
+            {
+                var gallery = new Gallery(new StateStore(Path.Combine(root, "basket-limit-profile")));
+                for (int i = 0; i < 52; i++)
+                {
+                    string file = WritePicture("收集_" + i + ".png", (byte)i);
+                    gallery.Add(file, ImageContent.Read(file));
+                }
+                Check(gallery.Items.Count == 50 && gallery.Collected.Count == 52);
+                gallery.Clear();
+                Check(gallery.Items.Count == 0 && gallery.Collected.Count == 52);
+            });
+            Run("重新挂上已编辑的图片时使用最新内容", delegate
+            {
+                var gallery = new Gallery(new StateStore(Path.Combine(root, "basket-edited-profile")));
+                string file = WritePicture("编辑后重挂.png", 40);
+                gallery.Collect(file, ImageContent.Read(file));
+                File.WriteAllBytes(file, ImageContent.EncodeClipboard(Picture(150)));
+                var edited = ImageContent.Read(file);
+                gallery.Add(file, edited);
+                Check(gallery.Items.Single().Image.Fingerprint == edited.Fingerprint);
+            });
+            Run("删除本地文件时同时清理挂图和收集记录", delegate
+            {
+                var gallery = new Gallery(new StateStore(Path.Combine(root, "basket-prune-profile")));
+                string file = WritePicture("已删除.png", 120);
+                gallery.Add(file, ImageContent.Read(file));
+                File.Delete(file);
+                gallery.Prune();
+                Check(gallery.Items.Count == 0 && gallery.Collected.Count == 0);
+            });
+            Run("自动挂图开关保存后可恢复，旧版配置默认开启", delegate
+            {
+                var store = new StateStore(Path.Combine(root, "auto-hang-profile"));
+                Check(store.State.AutoHang);
+                store.State.AutoHang = false;
+                store.Save();
+                Check(!new StateStore(store.Root).State.AutoHang);
+                File.WriteAllText(Path.Combine(store.Root, "state.json"), "{\"Images\":[\"旧截图.png\"]}");
+                Check(new StateStore(store.Root).State.AutoHang);
+            });
             Run("设置与中文路径可持久化并原子替换", delegate
             {
                 string profile = Path.Combine(root, "state-profile");
@@ -170,6 +225,43 @@ namespace ScreenLine.Tests
                 try { store.Save(); }
                 finally { release.Wait(); }
                 Check(new StateStore(profile).State.CollectClipboard);
+            });
+            Run("文字收集忽略空白，不创建空记录", delegate
+            {
+                var texts = new TextCollection(new StateStore(Path.Combine(root, "empty-texts")));
+                Check(texts.Add(null) == null && texts.Add(" \r\n\t") == null && texts.Items.Count == 0);
+            });
+            Run("收下文字完整保留中文、缩进和换行，重复收下只保留一条", delegate
+            {
+                var texts = new TextCollection(new StateStore(Path.Combine(root, "exact-texts")));
+                string content = "  拍摄清单\r\n\t领夹麦 🔋\n第二段  ";
+                var first = texts.Add(content);
+                var second = texts.Add("另一段文字");
+                Check(texts.Add(content) == first && texts.Items.Count == 2 && texts.Items[0] == second && first.Content == content);
+                var restored = new TextCollection(new StateStore(texts.Store.Root));
+                Check(restored.Items[1].Content == content && restored.Items[1].Id == first.Id && Math.Abs((restored.Items[1].CreatedUtc - first.CreatedUtc).TotalMilliseconds) < 1);
+            });
+            Run("删除文字持久化，保留其他文字、截图和主题设置", delegate
+            {
+                var store = new StateStore(Path.Combine(root, "delete-texts"));
+                store.State.Images.Add("原有图片.png"); store.State.Collection.Add("待挂截图.png"); store.State.Theme = "linen";
+                var texts = new TextCollection(store);
+                var removed = texts.Add("删除这段");
+                var retained = texts.Add("保留这段");
+                texts.Remove(removed);
+                var restored = new StateStore(store.Root);
+                Check(restored.State.Texts.Count == 1 && restored.State.Texts[0].Id == retained.Id && restored.State.Images.Single() == "原有图片.png"
+                    && restored.State.Collection.Single() == "待挂截图.png" && restored.State.Theme == "linen");
+            });
+            Run("旧版配置可直接收下文字，大段文字重启后仍完整", delegate
+            {
+                string profile = Path.Combine(root, "large-texts"); Directory.CreateDirectory(profile);
+                File.WriteAllText(Path.Combine(profile, "state.json"), "{\"Images\":[\"保留截图.png\"],\"Texts\":null}");
+                var texts = new TextCollection(new StateStore(profile));
+                string content = new string('中', 2200000);
+                texts.Add(content);
+                var restored = new StateStore(profile);
+                Check(restored.State.Texts.Single().Content == content && restored.State.Images.Single() == "保留截图.png");
             });
             Console.WriteLine("核心测试：{0} 通过，{1} 失败", passed, failed);
             Environment.ExitCode = failed == 0 ? 0 : 1;

@@ -1,12 +1,16 @@
-﻿param([string]$ArchivePath = (Join-Path $PSScriptRoot '..\releases\PicRope-1.0.0-windows-x64.zip'))
+﻿param([string]$ArchivePath)
 $ErrorActionPreference = 'Stop'
+if (-not $ArchivePath) {
+    $version = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $PSScriptRoot '..\build\PicRope.exe')).ProductVersion
+    $ArchivePath = Join-Path $PSScriptRoot ('..\releases\PicRope-' + $version + '-windows-x64.zip')
+}
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [IO.Compression.ZipFile]::OpenRead([IO.Path]::GetFullPath($ArchivePath))
 try {
     $files = @($archive.Entries | Where-Object { $_.Name } | ForEach-Object { $_.FullName.Replace('\','/') })
     if ($files -match 'stale-review-fixture|(^|/)(data|test-data|EditorCache)/') { throw '发布包包含残留测试数据或个人缓存' }
     $expected = @(
-        'Install.cmd','install.ps1','app/uninstall.ps1',
+        'Install.cmd','install.ps1','app/uninstall.ps1','app/update.ps1',
         'app/PicRope.exe','app/PicRope.exe.config','app/Microsoft.Web.WebView2.Core.dll',
         'app/Microsoft.Web.WebView2.Wpf.dll','app/WebView2Loader.dll','app/LICENSE','app/NOTICE',
         'app/editor/index.html','app/editor/editor.js','app/editor/editor.css',

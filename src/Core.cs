@@ -14,10 +14,15 @@ namespace ScreenLine
     internal sealed class SavedState
     {
         public bool CollectClipboard { get; set; }
+        public bool CollectTextClipboard { get; set; }
+        public bool AutoHang { get; set; }
         public string Theme { get; set; }
+        public string LastUpdateNotification { get; set; }
         public List<string> Images { get; set; }
+        public List<string> Collection { get; set; }
+        public List<TextItem> Texts { get; set; }
 
-        public SavedState() { Images = new List<string>(); Theme = "classic"; }
+        public SavedState() { Images = new List<string>(); Collection = new List<string>(); Texts = new List<TextItem>(); Theme = "classic"; AutoHang = true; }
     }
 
     internal sealed class StateStore
@@ -26,7 +31,7 @@ namespace ScreenLine
         public readonly string Root;
         public readonly string Inbox;
         public readonly SavedState State;
-        readonly JavaScriptSerializer serializer = new JavaScriptSerializer();
+        readonly JavaScriptSerializer serializer = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
         readonly string file;
 
         public StateStore(string root)
@@ -40,6 +45,8 @@ namespace ScreenLine
             {
                 State = serializer.Deserialize<SavedState>(File.ReadAllText(file, Encoding.UTF8)) ?? new SavedState();
                 if (State.Images == null) State.Images = new List<string>();
+                if (State.Collection == null) State.Collection = new List<string>();
+                if (State.Texts == null) State.Texts = new List<TextItem>();
             }
             catch (ArgumentException ex) { Log(ex); }
             catch (InvalidOperationException ex) { Log(ex); }
@@ -58,6 +65,59 @@ namespace ScreenLine
         {
             Directory.CreateDirectory(Root);
             File.AppendAllText(Path.Combine(Root, "error.log"), DateTime.Now.ToString("s") + " " + error + Environment.NewLine);
+        }
+    }
+
+    internal sealed class TextItem
+    {
+        public string Id { get; set; }
+        public string Content { get; set; }
+        public DateTime CreatedUtc { get; set; }
+    }
+
+    internal sealed class TextCollection
+    {
+        public readonly StateStore Store;
+        public List<TextItem> Items { get { return Store.State.Texts; } }
+        public event Action Changed;
+
+        public TextCollection(StateStore store) { Store = store; }
+
+        public bool CollectClipboard
+        {
+            get { return Store.State.CollectTextClipboard; }
+            set
+            {
+                bool previous = CollectClipboard;
+                if (previous == value) return;
+                Store.State.CollectTextClipboard = value;
+                try { Store.Save(); }
+                catch { Store.State.CollectTextClipboard = previous; throw; }
+                if (Changed != null) Changed();
+            }
+        }
+
+        public TextItem Add(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content)) return null;
+            var existing = Items.Find(item => item.Content == content);
+            if (existing != null) return existing;
+            var added = new TextItem { Id = Guid.NewGuid().ToString("N"), Content = content, CreatedUtc = DateTime.UtcNow };
+            Items.Insert(0, added);
+            try { Store.Save(); }
+            catch { Items.Remove(added); throw; }
+            if (Changed != null) Changed();
+            return added;
+        }
+
+        public void Remove(TextItem item)
+        {
+            int index = Items.IndexOf(item);
+            if (index < 0) return;
+            Items.RemoveAt(index);
+            try { Store.Save(); }
+            catch { Items.Insert(index, item); throw; }
+            if (Changed != null) Changed();
         }
     }
 
@@ -235,6 +295,7 @@ namespace ScreenLine
     internal sealed class Gallery
     {
         public readonly List<CaptureItem> Items = new List<CaptureItem>();
+        public readonly List<CaptureItem> Collected = new List<CaptureItem>();
         public readonly StateStore Store;
         public event Action Changed;
 
@@ -242,10 +303,24 @@ namespace ScreenLine
 
         public bool Contains(string path) { return Items.Any(i => FileRules.SameFile(i.Path, path)); }
 
+        public CaptureItem Collect(string path, ImageContent image)
+        {
+            var item = Collected.FirstOrDefault(i => FileRules.SameFile(i.Path, path));
+            if (item != null) return item;
+            item = new CaptureItem(path, image);
+            Collected.Add(item);
+            Save();
+            Notify();
+            return item;
+        }
+
         public void Add(string path, ImageContent image)
         {
             if (Contains(path)) return;
-            Items.Add(new CaptureItem(path, image));
+            var item = Collected.FirstOrDefault(i => FileRules.SameFile(i.Path, path));
+            if (item == null) { item = new CaptureItem(path, image); Collected.Add(item); }
+            else if (item.Image != image) { item.Image = image; item.Written = File.GetLastWriteTimeUtc(path); }
+            Items.Add(item);
             if (Items.Count > 50) Items.RemoveAt(0);
             Save();
             Notify();
@@ -267,7 +342,9 @@ namespace ScreenLine
 
         public void Prune()
         {
-            if (Items.RemoveAll(i => !File.Exists(i.Path)) == 0) return;
+            int removed = Items.RemoveAll(i => !File.Exists(i.Path));
+            removed += Collected.RemoveAll(i => !File.Exists(i.Path));
+            if (removed == 0) return;
             Save();
             Notify();
         }
@@ -277,6 +354,7 @@ namespace ScreenLine
         void Save()
         {
             Store.State.Images = Items.Select(i => i.Path).ToList();
+            Store.State.Collection = Collected.Select(i => i.Path).ToList();
             Store.Save();
         }
     }

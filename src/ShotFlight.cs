@@ -22,16 +22,19 @@ namespace ScreenLine
         readonly DropShadowEffect shadow = new DropShadowEffect { BlurRadius = 14, ShadowDepth = 4 };
         readonly Stopwatch clock = new Stopwatch();
         readonly Action landed;
+        readonly Func<Rect> basketTarget;
         Rect origin;
-        bool completed;
+        bool completed, arrived;
         public bool Falling { get; private set; }
+        public bool Collecting { get { return basketTarget != null; } }
 
-        public ShotFlight(Forms.Screen screen, ShotCard card, Rect origin, bool falling, Action landed, BitmapSource image = null)
+        public ShotFlight(Forms.Screen screen, ShotCard card, Rect origin, bool falling, Action landed, BitmapSource image = null, Func<Rect> basketTarget = null)
         {
             this.card = card;
             ApplyTheme(card.Appearance);
             screenOrigin = origin;
             this.landed = landed;
+            this.basketTarget = basketTarget;
             Falling = falling;
             double scale = WindowsNative.MonitorScale(screen);
             Width = screen.Bounds.Width / scale;
@@ -83,13 +86,15 @@ namespace ScreenLine
         {
             if (completed) return;
             completed = true;
+            if (Collecting && !arrived) return;
             landed();
         }
 
         void Render(object sender, EventArgs args)
         {
-            if (!Falling && card.IsDisposed) { Close(); return; }
+            if (!Falling && !Collecting && card.IsDisposed) { Close(); return; }
             double seconds = clock.Elapsed.TotalSeconds;
+            if (Collecting) { RenderCollection(Math.Min(1, seconds / 0.64)); return; }
             double progress = Math.Min(1, seconds / (Falling ? 0.55 : 0.65));
             // 五次曲线让起飞与抵达的速度、加速度都平滑归零。
             double ease = progress * progress * progress * (10 + progress * (-15 + 6 * progress));
@@ -130,6 +135,37 @@ namespace ScreenLine
             if (Falling) { Close(); return; }
             Opacity = Math.Max(0, 1 - (seconds - 0.65) / 0.16);
             if (seconds >= 0.81) Close();
+        }
+
+        void RenderCollection(double progress)
+        {
+            Rect mouth = Local(basketTarget());
+            double ease = progress * progress * progress * (10 + progress * (-15 + 6 * progress));
+            double smallWidth = Math.Min(22, Math.Max(10, origin.Width * 0.15));
+            double smallHeight = smallWidth * origin.Height / origin.Width;
+            double width = origin.Width + (smallWidth - origin.Width) * ease;
+            double height = origin.Height + (smallHeight - origin.Height) * ease;
+            double startX = origin.X + origin.Width / 2, endX = mouth.X + mouth.Width / 2;
+            double x = startX + (endX - startX) * ease;
+            double lift = Math.Min(38, Math.Max(10, origin.Y - 10));
+            double y = origin.Y + origin.Height / 2 + (mouth.Y + smallHeight / 2 + 4 - origin.Y - origin.Height / 2) * ease
+                - lift * Math.Sin(Math.PI * ease);
+            double top = y - height / 2;
+            frame.Width = border.Width = width; frame.Height = border.Height = height;
+            Canvas.SetLeft(frame, x - width / 2); Canvas.SetTop(frame, top);
+            turn.CenterX = width / 2; turn.CenterY = height / 2;
+            turn.Angle = card.Tilt * (1 - ease) + Math.Sign(endX - startX) * 10 * Math.Sin(Math.PI * ease);
+            border.Background = Brushes.White; border.BorderThickness = new Thickness(1);
+            border.CornerRadius = new CornerRadius(Math.Min(9, width * 0.09));
+            photo.Margin = new Thickness(Math.Min(6, width * 0.04));
+            shadow.Opacity = 0.16 * (1 - ease); clip.Opacity = 0;
+            Opacity = 1 - 0.8 * Math.Max(0, (progress - 0.82) / 0.18);
+            frame.Clip = null;
+            // 图片跨过篮口后逐渐被篮身遮住，而不是在篮子前方淡出。
+            if (progress > 0.68 && Math.Abs(x - endX) < mouth.Width * 0.6)
+                frame.Clip = new RectangleGeometry(new Rect(0, 0, width, Math.Max(0, Math.Min(height, mouth.Y - top))));
+            if (progress < 1) return;
+            arrived = true; Complete(); Close();
         }
     }
 }

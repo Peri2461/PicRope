@@ -51,6 +51,17 @@ namespace ScreenLine
             }
         }
 
+        public bool AutoHang
+        {
+            get { return gallery.Store.State.AutoHang; }
+            set
+            {
+                gallery.Store.State.AutoHang = value;
+                gallery.Store.Save();
+                gallery.Notify();
+            }
+        }
+
         public void IgnoreCurrentClipboard()
         {
             clipboardSequence = WindowsNative.GetClipboardSequenceNumber();
@@ -61,12 +72,25 @@ namespace ScreenLine
         {
             AttachWatcher();
             timer.Start();
-            // 保存的图片只恢复展示，不重新计入最近截图的去重记录。
             var saved = gallery.Store.State.Images.ToArray();
-            foreach (string path in saved)
+            var collected = saved.Concat(gallery.Store.State.Collection);
+            if (Directory.Exists(gallery.Store.Inbox))
+                collected = collected.Concat(Directory.EnumerateFiles(gallery.Store.Inbox).Where(FileRules.IsImage));
+            // 恢复图片篮子时不触发自动挂图，也不重新计入截图去重记录。
+            foreach (string path in collected.Distinct(StringComparer.OrdinalIgnoreCase).ToArray())
             {
                 if (disposed) return;
-                if (File.Exists(path)) await Import(path, null, false);
+                if (!File.Exists(path)) continue;
+                try
+                {
+                    ImageContent image = await Task.Run(() => ImageContent.Read(path));
+                    if (disposed) return;
+                    if (saved.Contains(path, StringComparer.OrdinalIgnoreCase)) gallery.Add(path, image);
+                    else gallery.Collect(path, image);
+                }
+                catch (IOException) { }
+                catch (NotSupportedException) { }
+                catch (UnauthorizedAccessException) { }
             }
         }
 
@@ -114,7 +138,7 @@ namespace ScreenLine
             if (++ticks % 10 == 0)
             {
                 gallery.Prune();
-                foreach (var item in gallery.Items.ToArray())
+                foreach (var item in gallery.Collected.ToArray())
                     if (!processing.Contains(item.Path) && File.GetLastWriteTimeUtc(item.Path) != item.Written) Refresh(item);
             }
         }
@@ -131,17 +155,21 @@ namespace ScreenLine
 
         public async Task<bool> Import(string path, CaptureSource? source, bool announce)
         {
-            if (gallery.Contains(path)) return true;
+            if (source.HasValue ? gallery.Collected.Any(i => FileRules.SameFile(i.Path, path)) : gallery.Contains(path)) return true;
             try
             {
                 ImageContent image = await Task.Run(() => ImageContent.Read(path));
                 if (disposed) return false;
                 if (source.HasValue && !receipts.Accept(image.Fingerprint, source.Value, DateTime.UtcNow)) return true;
-                gallery.Add(path, image);
-                if (announce && Arrived != null)
+                if (source.HasValue && !AutoHang) gallery.Collect(path, image);
+                else
                 {
-                    var cursor = WindowsNative.Cursor();
-                    Arrived(gallery.Items[gallery.Items.Count - 1], source.HasValue ? new Point?(new Point(cursor.X, cursor.Y)) : null);
+                    gallery.Add(path, image);
+                    if (announce && Arrived != null)
+                    {
+                        var cursor = WindowsNative.Cursor();
+                        Arrived(gallery.Items[gallery.Items.Count - 1], source.HasValue ? new Point?(new Point(cursor.X, cursor.Y)) : null);
+                    }
                 }
                 return true;
             }
@@ -150,13 +178,21 @@ namespace ScreenLine
             catch (UnauthorizedAccessException) { return false; }
         }
 
+        public void Hang(CaptureItem item)
+        {
+            if (disposed || gallery.Contains(item.Path)) return;
+            if (!File.Exists(item.Path)) { gallery.Prune(); return; }
+            gallery.Add(item.Path, item.Image);
+            if (Arrived != null) Arrived(item, null);
+        }
+
         async void Refresh(CaptureItem item)
         {
             processing.Add(item.Path);
             try
             {
                 ImageContent image = await Task.Run(() => ImageContent.Read(item.Path));
-                if (!disposed && gallery.Items.Contains(item))
+                if (!disposed && gallery.Collected.Contains(item))
                 {
                     item.Image = image;
                     item.Written = File.GetLastWriteTimeUtc(item.Path);
@@ -207,8 +243,12 @@ namespace ScreenLine
                 string path = Path.Combine(gallery.Store.Inbox, "截图_" + DateTime.Now.ToString("yyyyMMdd_HHmmss_fff") + "_" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".png");
                 await Task.Run(() => File.WriteAllBytes(path, png));
                 if (disposed) return;
-                gallery.Add(path, content);
-                if (Arrived != null) Arrived(gallery.Items[gallery.Items.Count - 1], origin);
+                if (!AutoHang) gallery.Collect(path, content);
+                else
+                {
+                    gallery.Add(path, content);
+                    if (Arrived != null) Arrived(gallery.Items[gallery.Items.Count - 1], origin);
+                }
             }
             catch (Exception error)
             {

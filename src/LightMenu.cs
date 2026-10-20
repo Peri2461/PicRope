@@ -73,10 +73,22 @@ namespace ScreenLine
             { "startup", "M12,3 L19,10 H14 V21 H10 V10 H5 Z" },
             { "appearance", "M12,3 A9,9 0 1 0 12,21 H14 Q17,21 17,18 Q17,16 15,16 H14 Q12,16 12,14 Q12,12 14,12 H19 Q22,12 21,9 Q20,3 12,3 Z M7,8 H7.1 M11,6 H11.1 M16,7 H16.1 M6,13 H6.1" },
             { "exit", "M6,6 A8,8 0 1 0 18,6 M12,3 V12" },
-            { "remove", "M4,12 H20" }
+            { "remove", "M4,12 H20" },
+            { "envelope", "M5,4 H19 Q21,4 21,6 V18 Q21,20 19,20 H5 Q3,20 3,18 V6 Q3,4 5,4 Z M3,6 L12,13 L21,6" },
+            { "picture", "M5,3 H19 Q21,3 21,5 V19 Q21,21 19,21 H5 Q3,21 3,19 V5 Q3,3 5,3 Z M3,16 L8,11 L13,16 L17,12 L21,16 M16,7 H18" },
+            { "text", "M6,3 H18 Q20,3 20,5 V19 Q20,21 18,21 H6 Q4,21 4,19 V5 Q4,3 6,3 Z M8,9 H16 M8,14 H13" },
+            { "more", "M21,12 A9,9 0 1 0 3,12 A9,9 0 1 0 21,12 M7,12 H7.1 M12,12 H12.1 M17,12 H17.1" },
+            { "chevron", "M9,4 L16,12 L9,20" }
         };
 
         readonly TextBlock details;
+
+        internal static Geometry IconGeometry(string name)
+        {
+            var geometry = Geometry.Parse(icons[name]);
+            geometry.Freeze();
+            return geometry;
+        }
 
         public LightMenu(string title, string detail)
         {
