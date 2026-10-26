@@ -1121,7 +1121,7 @@ namespace ScreenLine.Tests
             await Until(() => !controller.Shelf.Animating);
             Check(!controller.Shelf.Animating && !controller.Shelf.MotionWindows.Any(), "收起后停止逐帧动画并清理临时窗口");
             SetCursorPos(bounds.Left + 400, controller.Shelf.Display.Bounds.Top + 1);
-            await Task.Delay(650);
+            await Until(() => controller.Shelf.Revealed);
             Check(controller.Shelf.Revealed, "鼠标停在屏幕上沿可再次展开");
             await CheckViewerClose();
         }
@@ -1780,12 +1780,41 @@ namespace ScreenLine.Tests
             controller.ShowTrayMenu();
             await Until(() => controller.TrayMenu.IsOpen && controller.TrayMenu.ActualHeight > 0);
             var trayMenu = controller.TrayMenu;
-            Check(trayMenu.ActualHeight < 440 && trayMenu.ActualWidth <= 360, "托盘主面板紧凑显示，不再纵向排列所有功能");
+            Check(trayMenu.ActualHeight < 480 && trayMenu.ActualWidth <= 360, "托盘主面板紧凑显示，屏幕选择直接可见");
             Point topLeft = trayMenu.PointToScreen(new Point());
             Point bottomRight = trayMenu.PointToScreen(new Point(trayMenu.ActualWidth, trayMenu.ActualHeight));
             Check(topLeft.X >= screen.Bounds.Left && topLeft.Y >= screen.Bounds.Top
                 && bottomRight.X <= screen.Bounds.Right + 1 && bottomRight.Y <= screen.Bounds.Bottom + 1, "屏幕右下角的托盘菜单完整显示，没有超出屏幕");
             Check(trayMenu.MoreMenu.Items.OfType<MenuItem>().Count(x => x.IsEnabled) == 5, "更多操作保留添加、文件夹、全部取下、开机启动和更新入口");
+            Check(trayMenu.ScreenButton.IsVisible && trayMenu.ScreenMode.Text == "跟随鼠标", "显示屏幕入口直接呈现当前模式");
+            await ClickMenu(trayMenu.ScreenButton);
+            await Until(() => trayMenu.ScreenMenu.IsOpen && trayMenu.ScreenMenu.ActualHeight > 0);
+            var screenOptions = trayMenu.ScreenMenu.Items.OfType<MenuItem>().Where(item => item.IsCheckable).ToArray();
+            Check(screenOptions.Length == Forms.Screen.AllScreens.Length + 1 && screenOptions[0].IsChecked
+                && screenOptions.Count(item => item.IsChecked) == 1, "屏幕菜单列出跟随鼠标与所有已连接屏幕，当前模式单选标记");
+            var screenMenuBounds = new Rect(trayMenu.ScreenMenu.PointToScreen(new Point()), trayMenu.ScreenMenu.PointToScreen(new Point(trayMenu.ScreenMenu.ActualWidth, trayMenu.ScreenMenu.ActualHeight)));
+            Check(screenMenuBounds.Left >= screen.Bounds.Left && screenMenuBounds.Top >= screen.Bounds.Top
+                && screenMenuBounds.Right <= screen.Bounds.Right + 1 && screenMenuBounds.Bottom <= screen.Bounds.Bottom + 1, "屏幕选择菜单在屏幕边缘完整显示");
+            var screenPreview = new PngBitmapEncoder(); screenPreview.Frames.Add(BitmapFrame.Create(RenderMenu(trayMenu.ScreenMenu)));
+            string screenPreviewPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "previews", "托盘菜单", "屏幕选择.png");
+            Directory.CreateDirectory(Path.GetDirectoryName(screenPreviewPath));
+            using (var output = File.Create(screenPreviewPath)) screenPreview.Save(output);
+            await ClickMenu(screenOptions[1]);
+            Check(!trayMenu.IsOpen && !trayMenu.ScreenMenu.IsOpen && store.State.DisplayDevice == Forms.Screen.AllScreens[0].DeviceName
+                && new StateStore(store.Root).State.DisplayDevice == store.State.DisplayDevice, "点击固定屏幕后立即保存并关闭菜单");
+            controller.ShowTrayMenu(); await Until(() => trayMenu.IsOpen);
+            Check(trayMenu.ScreenMode.Text == "屏幕 1", "托盘重新打开后呈现已选屏幕");
+            await ClickMenu(trayMenu.ScreenButton); await Until(() => trayMenu.ScreenMenu.IsOpen);
+            Check(trayMenu.ScreenMenu.Items.OfType<MenuItem>().Count(item => item.IsChecked) == 1
+                && trayMenu.ScreenMenu.Items.OfType<MenuItem>().Single(item => item.IsChecked).Header as string == "屏幕 1" + (Forms.Screen.AllScreens[0].Primary ? " · 主屏" : ""), "固定屏幕显示唯一选中标记");
+            keybd_event(27, 0, 0, UIntPtr.Zero); keybd_event(27, 0, 2, UIntPtr.Zero);
+            await Until(() => !trayMenu.ScreenMenu.IsOpen);
+            Check(trayMenu.IsOpen, "Escape 先关闭屏幕选择，保留主面板");
+            await ClickMenu(trayMenu.ScreenButton); await Until(() => trayMenu.ScreenMenu.IsOpen);
+            await ClickMenu(trayMenu.ScreenMenu.Items.OfType<MenuItem>().Single(item => item.Header as string == "跟随鼠标"));
+            Check(store.State.DisplayDevice == null && new StateStore(store.Root).State.DisplayDevice == null, "点击跟随鼠标取消固定并保存");
+            SetCursorPos(screen.WorkingArea.Right - 35, screen.WorkingArea.Bottom + 12);
+            controller.ShowTrayMenu(); await Until(() => trayMenu.IsOpen);
             await ClickMenu(trayMenu.Pictures);
             Check(trayMenu.IsOpen && controller.Captures.CollectClipboard && new StateStore(store.Root).State.CollectClipboard, "图片收集开关实际点击后开启并保存，面板保持打开");
             await ClickMenu(trayMenu.Text);
@@ -1963,7 +1992,9 @@ namespace ScreenLine.Tests
             {
                 if (DateTime.UtcNow >= deadline) throw new Exception("等待结果超时，当前图片数量：" + controller.Gallery.Items.Count
                     + "，展开：" + controller.Shelf.Revealed + "，鼠标命中：" + WindowFromPoint(WindowsNative.Cursor())
-                    + "，绳子窗口：" + controller.Shelf.Handle);
+                    + "，绳子窗口：" + controller.Shelf.Handle
+                    + "，鼠标位置：" + WindowsNative.Cursor().X + "," + WindowsNative.Cursor().Y
+                    + "，全屏：" + WindowsNative.FullScreen(controller.Shelf.Display, controller.Shelf.Handle));
                 await Task.Delay(70);
             }
         }

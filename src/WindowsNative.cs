@@ -62,6 +62,8 @@ namespace ScreenLine
             return text.ToString();
         }
 
+        public static Forms.Screen[] Screens { get { return Forms.Screen.AllScreens; } }
+
         public static Forms.Screen ScreenAtPointer()
         {
             var point = Cursor();

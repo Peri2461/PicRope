@@ -210,7 +210,7 @@ namespace ScreenLine
                 WindowsNative.PrepareOverlay(Handle);
                 WindowsNative.PassMouse(Handle, true);
                 HwndSource.FromHwnd(Handle).AddHook(Messages);
-                MoveTo(WindowsNative.ScreenAtPointer());
+                MoveToDisplay();
                 pointer.Start();
             };
             SizeChanged += delegate { LayoutCards(); };
@@ -234,23 +234,42 @@ namespace ScreenLine
         IntPtr Messages(IntPtr window, int message, IntPtr w, IntPtr l, ref bool handled)
         {
             if (message == 0x21) { handled = true; return new IntPtr(3); }
-            if (message == 0x02E0) Dispatcher.BeginInvoke(new Action(delegate { if (Display != null) MoveTo(Display); }));
+            if (message == 0x02E0) Dispatcher.BeginInvoke(new Action(delegate { if (Display != null) MoveToDisplay(); }));
             return IntPtr.Zero;
         }
 
         void DisplaysChanged(object sender, EventArgs args)
         {
-            Dispatcher.BeginInvoke(new Action(delegate { MoveTo(WindowsNative.ScreenAtPointer()); }));
+            Dispatcher.BeginInvoke(new Action(MoveToDisplay));
         }
 
-        public void MoveTo(Forms.Screen screen)
+        Forms.Screen SelectedDisplay()
         {
+            string device = gallery.Store.State.DisplayDevice;
+            if (string.IsNullOrEmpty(device)) return WindowsNative.ScreenAtPointer();
+            var screens = WindowsNative.Screens;
+            return Array.Find(screens, screen => screen.DeviceName == device) ?? Array.Find(screens, screen => screen.Primary);
+        }
+
+        void MoveToDisplay()
+        {
+            var screen = SelectedDisplay();
             Display = screen;
             double scale = WindowsNative.MonitorScale(screen);
             Width = screen.WorkingArea.Width / scale;
             if (Handle != IntPtr.Zero)
                 WindowsNative.SetWindowPos(Handle, new IntPtr(-1), screen.WorkingArea.Left, screen.WorkingArea.Top, screen.WorkingArea.Width, (int)Math.Round(Height * scale), 0x10);
             LayoutCards();
+        }
+
+        internal void SetDisplay(string device)
+        {
+            string previous = gallery.Store.State.DisplayDevice;
+            gallery.Store.State.DisplayDevice = device;
+            try { gallery.Store.Save(); }
+            catch { gallery.Store.State.DisplayDevice = previous; throw; }
+            MoveToDisplay();
+            Reveal(true, true, 0);
         }
 
         public void Update()
@@ -373,7 +392,7 @@ namespace ScreenLine
             viewingName = null;
             viewingWindow = IntPtr.Zero;
             if (Revealed) Reveal(false, false, 0);
-            else { MoveTo(WindowsNative.ScreenAtPointer()); Reveal(true, true, 0); }
+            else { MoveToDisplay(); Reveal(true, true, 0); }
         }
 
         public void FollowImageViewer(string path)
@@ -407,7 +426,7 @@ namespace ScreenLine
 
         public void ShowNewCapture(CaptureItem item, Point? origin)
         {
-            MoveTo(WindowsNative.ScreenAtPointer());
+            MoveToDisplay();
             Reveal(true, false, 2);
             scrollMotion.Target = ScrollLimit;
             ropeMotion.Velocity += 8;
@@ -458,7 +477,7 @@ namespace ScreenLine
         {
             ShotCard card;
             if (closing || !cards.TryGetValue(path, out card) || card.Detached || card.Flying) return;
-            MoveTo(Forms.Screen.FromPoint(new System.Drawing.Point((int)(origin.X + origin.Width / 2), (int)(origin.Y + origin.Height / 2))));
+            MoveToDisplay();
             Reveal(true, false, 2);
             if (!Revealed) return;
             card.BeginFlight();
@@ -497,7 +516,7 @@ namespace ScreenLine
                     card.ResetClip();
                     card.BeginFlight();
                     var bounds = window.ReturnBounds;
-                    MoveTo(Forms.Screen.FromPoint(new System.Drawing.Point((int)(bounds.X + bounds.Width / 2), (int)(bounds.Y + bounds.Height / 2))));
+                    MoveToDisplay();
                     Reveal(true, false, 3);
                     LayoutCards();
                     viewport.UpdateLayout();
@@ -612,9 +631,10 @@ namespace ScreenLine
         void Tick(object sender, EventArgs args)
         {
             var cursor = WindowsNative.Cursor();
-            var screen = WindowsNative.ScreenAtPointer();
+            var screen = SelectedDisplay();
             bool down = (WindowsNative.GetAsyncKeyState(1) & 0x8000) != 0;
-            bool nearTop = cursor.Y >= screen.Bounds.Top && cursor.Y <= Math.Max(screen.Bounds.Top + 2, screen.WorkingArea.Top - 1);
+            bool nearTop = cursor.X >= screen.Bounds.Left && cursor.X < screen.Bounds.Right
+                && cursor.Y >= screen.Bounds.Top && cursor.Y <= Math.Max(screen.Bounds.Top + 2, screen.WorkingArea.Top - 1);
             bool over = Revealed && OverControl(cursor);
             var now = DateTime.UtcNow;
             bool viewing = ViewingImage(now);
@@ -632,7 +652,7 @@ namespace ScreenLine
                 if (edgeSince == DateTime.MaxValue) edgeSince = now;
                 if (now - edgeSince >= TimeSpan.FromMilliseconds(320) && (!Revealed || screen.DeviceName != Display.DeviceName))
                 {
-                    MoveTo(screen);
+                    MoveToDisplay();
                     Reveal(true, false, 0);
                 }
             }

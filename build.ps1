@@ -1,4 +1,4 @@
-﻿param([switch]$DesktopTests, [switch]$FolderTests, [switch]$MenuTests, [switch]$EditorTests, [switch]$ThemeTests, [switch]$WindTests, [switch]$BasketTests, [switch]$ScrollTests, [switch]$BasketAppearanceTests, [switch]$BasketMotionTests, [switch]$UpdateTests, [switch]$TextTests, [switch]$EnvelopeMotionTests, [switch]$Package)
+﻿param([switch]$DesktopTests, [switch]$FolderTests, [switch]$MenuTests, [switch]$EditorTests, [switch]$ThemeTests, [switch]$WindTests, [switch]$BasketTests, [switch]$ScrollTests, [switch]$BasketAppearanceTests, [switch]$BasketMotionTests, [switch]$UpdateTests, [switch]$TextTests, [switch]$EnvelopeMotionTests, [switch]$MonitorTests, [switch]$Package)
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
 $frameworkPath = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
@@ -96,6 +96,8 @@ if ($EnvelopeMotionTests) {
     & (Join-Path $buildPath 'EnvelopeMotionTests.exe')
     if ($LASTEXITCODE -ne 0) { throw '信封动效测试未通过' }
 }
+
+if ($MonitorTests) { & (Join-Path $projectRoot 'tests\MonitorTests.ps1') }
 
 if ($Package) {
     & (Join-Path $projectRoot 'package.ps1')

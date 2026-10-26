@@ -17,6 +17,7 @@ namespace ScreenLine
         public bool CollectTextClipboard { get; set; }
         public bool AutoHang { get; set; }
         public string Theme { get; set; }
+        public string DisplayDevice { get; set; }
         public string LastUpdateNotification { get; set; }
         public List<string> Images { get; set; }
         public List<string> Collection { get; set; }

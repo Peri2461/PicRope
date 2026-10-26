@@ -18,9 +18,9 @@ using Forms = System.Windows.Forms;
 [assembly: AssemblyTitle("PicRope · 图绳")]
 [assembly: AssemblyProduct("PicRope")]
 [assembly: AssemblyDescription("图绳：把截图挂在屏幕上沿，随手复制、拖拽和保存。")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
-[assembly: AssemblyInformationalVersion("1.1.0")]
+[assembly: AssemblyVersion("1.1.1.0")]
+[assembly: AssemblyFileVersion("1.1.1.0")]
+[assembly: AssemblyInformationalVersion("1.1.1")]
 
 namespace ScreenLine
 {
@@ -75,6 +75,9 @@ namespace ScreenLine
                 tray.Icon = new System.Drawing.Icon(stream, Forms.SystemInformation.SmallIconSize);
             tray.Text = "PicRope · 图绳";
             TrayMenu = new TrayPanel();
+            SyncScreens();
+            TrayMenu.Opened += delegate { SyncScreens(); };
+            TrayMenu.ScreenMenu.Opened += delegate { SyncScreens(); };
             TrayMenu.OnAction(TrayMenu.VisibilityButton, delegate { Shelf.Toggle(); });
             if (events.ShortcutAvailable) TrayMenu.Shortcut.Text = "Ctrl+Alt+T";
             else Notice("Ctrl+Alt+T 已被占用，可点击托盘图标打开。");
@@ -193,6 +196,19 @@ namespace ScreenLine
         }
 
         void SyncAutoHang() { autoHang.IsChecked = Captures.AutoHang; }
+
+        void SyncScreens()
+        {
+            TrayMenu.SetScreens(WindowsNative.Screens, Gallery.Store.State.DisplayDevice, SelectScreen);
+        }
+
+        void SelectScreen(string device)
+        {
+            TrayMenu.Close();
+            try { Shelf.SetDisplay(device); }
+            catch (Exception error) { Gallery.Store.Log(error); Notice("无法保存屏幕设置：" + error.Message); }
+            SyncScreens();
+        }
 
         async void CollectClipboardText()
         {

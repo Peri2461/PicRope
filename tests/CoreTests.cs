@@ -263,6 +263,20 @@ namespace ScreenLine.Tests
                 var restored = new StateStore(profile);
                 Check(restored.State.Texts.Single().Content == content && restored.State.Images.Single() == "保留截图.png");
             });
+            Run("显示屏幕选择可保存，旧版配置默认跟随鼠标", delegate
+            {
+                string profile = Path.Combine(root, "display-preference"); Directory.CreateDirectory(profile);
+                File.WriteAllText(Path.Combine(profile, "state.json"), "{\"Images\":[\"保留截图.png\"],\"Theme\":\"linen\"}");
+                var store = new StateStore(profile);
+                Check(store.State.DisplayDevice == null && store.State.Images.Single() == "保留截图.png" && store.State.Theme == "linen");
+                store.State.DisplayDevice = @"\\.\DISPLAY2";
+                store.Save();
+                var restored = new StateStore(store.Root);
+                Check(restored.State.DisplayDevice == @"\\.\DISPLAY2");
+                restored.State.DisplayDevice = null;
+                restored.Save();
+                Check(new StateStore(store.Root).State.DisplayDevice == null);
+            });
             Console.WriteLine("核心测试：{0} 通过，{1} 失败", passed, failed);
             Environment.ExitCode = failed == 0 ? 0 : 1;
         }

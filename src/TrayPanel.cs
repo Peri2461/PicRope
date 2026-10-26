@@ -11,6 +11,7 @@ using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using Forms = System.Windows.Forms;
 
 namespace ScreenLine
 {
@@ -58,9 +59,11 @@ namespace ScreenLine
   </Style>
 </ResourceDictionary>");
 
-        internal readonly Button VisibilityButton, BasketButton, TextButton, AppearanceButton, ExitButton, MoreButton;
+        internal readonly Button VisibilityButton, BasketButton, TextButton, AppearanceButton, ExitButton, MoreButton, ScreenButton;
         internal readonly CheckBox Pictures, Text, AutoHang;
         internal readonly LightMenu MoreMenu = new LightMenu("更多操作", "");
+        internal readonly LightMenu ScreenMenu = new LightMenu("显示屏幕", "") { Width = 320 };
+        internal readonly TextBlock ScreenMode = new TextBlock { FontSize = 11, Foreground = LightTheme.Brush("#65717F"), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 22, 0) };
         internal readonly TextBlock Shortcut = new TextBlock { FontSize = 10, Foreground = LightTheme.Brush("#65717F"), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
 
         internal TrayPanel()
@@ -83,6 +86,10 @@ namespace ScreenLine
 
             VisibilityButton = Action("显示 / 收起", "show"); VisibilityButton.Tag = "primary";
             ((Grid)VisibilityButton.Content).Children.Add(Shortcut); panel.Children.Add(VisibilityButton);
+            ScreenButton = Action("显示屏幕", "monitor"); ScreenButton.Height = 40;
+            var screenArrow = Icon("chevron"); screenArrow.Width = 13; screenArrow.Height = 13; screenArrow.HorizontalAlignment = HorizontalAlignment.Right;
+            ((Grid)ScreenButton.Content).Children.Add(ScreenMode); ((Grid)ScreenButton.Content).Children.Add(screenArrow);
+            panel.Children.Add(ScreenButton);
             BasketButton = Action("图片篮子", "folder"); TextButton = Action("文字信封", "envelope");
             var entries = Pair(BasketButton, TextButton); entries.Margin = new Thickness(0, 5, 0, 2); panel.Children.Add(entries);
             panel.Children.Add(Divider());
@@ -112,9 +119,23 @@ namespace ScreenLine
             Template = new ControlTemplate(typeof(ContextMenu)) { VisualTree = surface };
             MoreButton.Click += delegate
             {
+                ScreenMenu.IsOpen = false;
                 MoreMenu.PlacementTarget = MoreButton; MoreMenu.Placement = PlacementMode.Left;
                 MoreMenu.HorizontalOffset = -6; MoreMenu.VerticalOffset = -16;
                 MoreMenu.IsOpen = !MoreMenu.IsOpen;
+            };
+            ScreenButton.Click += delegate
+            {
+                MoreMenu.IsOpen = false;
+                ScreenMenu.PlacementTarget = ScreenButton; ScreenMenu.Placement = PlacementMode.Left;
+                ScreenMenu.HorizontalOffset = -6; ScreenMenu.VerticalOffset = -16;
+                ScreenMenu.IsOpen = !ScreenMenu.IsOpen;
+            };
+            ScreenMenu.AddHandler(MenuItem.ClickEvent, new RoutedEventHandler(delegate { Close(); }));
+            ScreenMenu.PreviewKeyDown += delegate(object sender, KeyEventArgs args)
+            {
+                if (args.Key != Key.Escape) return;
+                ScreenMenu.IsOpen = false; ScreenButton.Focus(); args.Handled = true;
             };
             MoreMenu.AddHandler(MenuItem.ClickEvent, new RoutedEventHandler(delegate { IsOpen = false; }));
             MoreMenu.PreviewKeyDown += delegate(object sender, KeyEventArgs args)
@@ -132,11 +153,12 @@ namespace ScreenLine
                     args.Handled = true; return;
                 }
                 if (args.Key != Key.Escape) return;
-                if (MoreMenu.IsOpen) { MoreMenu.IsOpen = false; MoreButton.Focus(); }
+                if (ScreenMenu.IsOpen) { ScreenMenu.IsOpen = false; ScreenButton.Focus(); }
+                else if (MoreMenu.IsOpen) { MoreMenu.IsOpen = false; MoreButton.Focus(); }
                 else Close();
                 args.Handled = true;
             };
-            Closed += delegate { MoreMenu.IsOpen = false; };
+            Closed += delegate { MoreMenu.IsOpen = false; ScreenMenu.IsOpen = false; };
             Opened += delegate { VisibilityButton.Focus(); };
         }
 
@@ -152,7 +174,28 @@ namespace ScreenLine
             toggle.Checked += handler; toggle.Unchecked += handler;
         }
 
-        internal void Close() { MoreMenu.IsOpen = false; IsOpen = false; }
+        internal void SetScreens(Forms.Screen[] screens, string selected, Action<string> choose)
+        {
+            int index = Array.FindIndex(screens, screen => screen.DeviceName == selected);
+            ScreenMode.Text = string.IsNullOrEmpty(selected) ? "跟随鼠标" : index < 0 ? "主屏（原屏幕未连接）" : "屏幕 " + (index + 1);
+            AutomationProperties.SetItemStatus(ScreenButton, ScreenMode.Text);
+            while (ScreenMenu.Items.Count > 1) ScreenMenu.Items.RemoveAt(1);
+            ScreenMenu.SetDetails(screens.Length + " 块已连接");
+            var follow = ScreenMenu.AddAction("跟随鼠标", "show", delegate { choose(null); });
+            follow.IsCheckable = true; follow.IsChecked = string.IsNullOrEmpty(selected);
+            ScreenMenu.Separator();
+            for (int i = 0; i < screens.Length; i++)
+            {
+                var screen = screens[i];
+                var option = ScreenMenu.AddAction("屏幕 " + (i + 1) + (screen.Primary ? " · 主屏" : ""), "monitor", delegate { choose(screen.DeviceName); });
+                option.IsCheckable = true; option.IsChecked = screen.DeviceName == selected;
+                option.InputGestureText = screen.Bounds.Width + " × " + screen.Bounds.Height;
+            }
+            ScreenMenu.Footer("跟随鼠标：移到任意屏幕顶部展开\n固定屏幕：始终在所选屏幕显示");
+            if (!string.IsNullOrEmpty(selected) && index < 0) ScreenMenu.Footer("原屏幕未连接，暂用主屏；重连后恢复");
+        }
+
+        internal void Close() { MoreMenu.IsOpen = false; ScreenMenu.IsOpen = false; IsOpen = false; }
 
         static Button Action(string title, string icon)
         {
