@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
 using System.Windows;
 using System.Windows.Media;
@@ -16,7 +17,7 @@ namespace ScreenLine
         public bool CollectClipboard { get; set; }
         public bool CollectTextClipboard { get; set; }
         public bool AutoHang { get; set; }
-        public bool DarkMode { get; set; }
+        public string ColorMode { get; set; }
         public string Theme { get; set; }
         public string DisplayDevice { get; set; }
         public string LastUpdateNotification { get; set; }
@@ -24,7 +25,7 @@ namespace ScreenLine
         public List<string> Collection { get; set; }
         public List<TextItem> Texts { get; set; }
 
-        public SavedState() { Images = new List<string>(); Collection = new List<string>(); Texts = new List<TextItem>(); Theme = "classic"; AutoHang = true; }
+        public SavedState() { Images = new List<string>(); Collection = new List<string>(); Texts = new List<TextItem>(); Theme = "classic"; AutoHang = true; ColorMode = "system"; }
     }
 
     internal sealed class StateStore
@@ -45,10 +46,16 @@ namespace ScreenLine
             if (!File.Exists(file)) return;
             try
             {
-                State = serializer.Deserialize<SavedState>(File.ReadAllText(file, Encoding.UTF8)) ?? new SavedState();
+                string raw = File.ReadAllText(file, Encoding.UTF8);
+                State = serializer.Deserialize<SavedState>(raw) ?? new SavedState();
                 if (State.Images == null) State.Images = new List<string>();
                 if (State.Collection == null) State.Collection = new List<string>();
                 if (State.Texts == null) State.Texts = new List<TextItem>();
+                if (State.ColorMode == null) State.ColorMode = "system";
+                // 0.1.0-fork 用布尔 DarkMode 保存深浅色，升级时映射为三态配置。
+                Match legacy = Regex.Match(raw, "\"DarkMode\"\\s*:\\s*(true|false)");
+                if (!raw.Contains("\"ColorMode\"") && legacy.Success)
+                    State.ColorMode = legacy.Groups[1].Value == "true" ? "dark" : "light";
             }
             catch (ArgumentException ex) { Log(ex); }
             catch (InvalidOperationException ex) { Log(ex); }

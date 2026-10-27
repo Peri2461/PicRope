@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Media;
+using Microsoft.Win32;
 
 namespace ScreenLine
 {
@@ -48,6 +49,25 @@ namespace ScreenLine
 
         public static bool Dark { get; private set; }
         public static event Action Changed;
+
+        public static bool SystemDark
+        {
+            get
+            {
+                using (var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"))
+                {
+                    object light = key == null ? null : key.GetValue("AppsUseLightTheme");
+                    return light is int && (int)light == 0;
+                }
+            }
+        }
+
+        public static bool Resolve(string mode)
+        {
+            if (mode == "dark") return true;
+            if (mode == "light") return false;
+            return SystemDark;
+        }
 
         public static void Install(Application app)
         {

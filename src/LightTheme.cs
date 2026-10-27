@@ -43,20 +43,6 @@ namespace ScreenLine
       </Border>
     </ControlTemplate></Setter.Value></Setter>
   </Style>
-  <Style x:Key='Switch' TargetType='CheckBox'>
-    <Setter Property='Cursor' Value='Hand'/><Setter Property='FocusVisualStyle' Value='{x:Null}'/>
-    <Setter Property='Template'><Setter.Value><ControlTemplate TargetType='CheckBox'>
-      <Border x:Name='Track' Width='38' Height='22' CornerRadius='11' Background='{DynamicResource Ui.SwitchOff}' BorderBrush='Transparent' BorderThickness='1'>
-        <Border x:Name='Knob' Width='16' Height='16' CornerRadius='8' Background='{DynamicResource Ui.White}' HorizontalAlignment='Left' Margin='2,0'/>
-      </Border>
-      <ControlTemplate.Triggers>
-        <Trigger Property='IsChecked' Value='True'><Setter TargetName='Track' Property='Background' Value='{DynamicResource Ui.Accent}'/><Setter TargetName='Knob' Property='HorizontalAlignment' Value='Right'/></Trigger>
-        <Trigger Property='IsMouseOver' Value='True'><Setter TargetName='Track' Property='Opacity' Value='0.86'/></Trigger>
-        <Trigger Property='IsKeyboardFocused' Value='True'><Setter TargetName='Track' Property='BorderBrush' Value='{DynamicResource Ui.Focus}'/></Trigger>
-        <Trigger Property='IsEnabled' Value='False'><Setter TargetName='Track' Property='Opacity' Value='0.4'/></Trigger>
-      </ControlTemplate.Triggers>
-    </ControlTemplate></Setter.Value></Setter>
-  </Style>
   <Style x:Key='Bar' TargetType='ScrollBar'>
     <Setter Property='Background' Value='Transparent'/><Setter Property='Width' Value='10'/><Setter Property='Focusable' Value='False'/>
     <Setter Property='Template'><Setter.Value><ControlTemplate TargetType='ScrollBar'>
@@ -89,7 +75,6 @@ namespace ScreenLine
 
         public static Style ButtonStyle { get { return (Style)styles["Action"]; } }
         public static Style HintStyle { get { return (Style)styles["Hint"]; } }
-        public static Style SwitchStyle { get { return (Style)styles["Switch"]; } }
         public static SolidColorBrush Brush(string value) { return (SolidColorBrush)new BrushConverter().ConvertFromString(value); }
 
         public static void Install(Application app)

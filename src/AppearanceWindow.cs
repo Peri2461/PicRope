@@ -11,15 +11,16 @@ namespace ScreenLine
     internal sealed class AppearanceWindow : Window
     {
         readonly Action<LineTheme> apply;
-        readonly Action<bool> applyDark;
+        readonly Action<string> applyMode;
         readonly List<TextBlock> selectionMarks = new List<TextBlock>();
+        readonly Dictionary<string, Button> modeButtons = new Dictionary<string, Button>();
         internal readonly List<Button> Options = new List<Button>();
-        internal readonly CheckBox DarkSwitch;
+        internal string Selection { get; private set; }
 
-        public AppearanceWindow(LineTheme selected, Gallery gallery, bool dark, Action<LineTheme> apply, Action<bool> applyDark)
+        public AppearanceWindow(LineTheme selected, Gallery gallery, string mode, Action<LineTheme> apply, Action<string> applyMode)
         {
             this.apply = apply;
-            this.applyDark = applyDark;
+            this.applyMode = applyMode;
             Title = "外观";
             Width = 654; Height = 512;
             WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize;
@@ -39,19 +40,27 @@ namespace ScreenLine
             body.Children.Add(heading);
             body.Children.Add(UiTheme.Paint(new TextBlock { Text = "界面深浅色与绳子外观分别切换", FontSize = 12, Margin = new Thickness(0, 0, 0, 14) }, TextBlock.ForegroundProperty, "Ui.TextMuted"));
             var modeRow = UiTheme.Paint(new Border { CornerRadius = new CornerRadius(9), Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 0, 0, 18) }, Border.BackgroundProperty, "Ui.SurfaceSubtle");
-            var mode = new Grid();
+            var modeGrid = new Grid();
             var modeText = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            modeText.Children.Add(UiTheme.Paint(new TextBlock { Text = "深色模式", FontSize = 13, FontWeight = FontWeights.SemiBold }, TextBlock.ForegroundProperty, "Ui.TextPrimary"));
-            modeText.Children.Add(UiTheme.Paint(new TextBlock { Text = "菜单、面板和弹窗使用深色表面", FontSize = 11, Margin = new Thickness(0, 3, 0, 0) }, TextBlock.ForegroundProperty, "Ui.TextMuted"));
-            mode.Children.Add(modeText);
-            DarkSwitch = new CheckBox { Style = LightTheme.SwitchStyle, IsChecked = dark, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
-            System.Windows.Automation.AutomationProperties.SetName(DarkSwitch, "深色模式");
-            System.Windows.Automation.AutomationProperties.SetAutomationId(DarkSwitch, "dark-mode");
-            DarkSwitch.Checked += delegate { if (this.applyDark != null) this.applyDark(true); };
-            DarkSwitch.Unchecked += delegate { if (this.applyDark != null) this.applyDark(false); };
-            mode.Children.Add(DarkSwitch);
-            modeRow.Child = mode;
+            modeText.Children.Add(UiTheme.Paint(new TextBlock { Text = "界面深浅色", FontSize = 13, FontWeight = FontWeights.SemiBold }, TextBlock.ForegroundProperty, "Ui.TextPrimary"));
+            modeText.Children.Add(UiTheme.Paint(new TextBlock { Text = "跟随系统，或固定使用浅色、深色", FontSize = 11, Margin = new Thickness(0, 3, 0, 0) }, TextBlock.ForegroundProperty, "Ui.TextMuted"));
+            modeGrid.Children.Add(modeText);
+            var modes = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
+            foreach (var choice in new[] {
+                new { Id = "system", Name = "跟随系统" },
+                new { Id = "light", Name = "浅色模式" },
+                new { Id = "dark", Name = "深色模式" } })
+            {
+                string id = choice.Id;
+                var button = LightTheme.Button(choice.Name, delegate { Choose(id); });
+                System.Windows.Automation.AutomationProperties.SetName(button, choice.Name);
+                System.Windows.Automation.AutomationProperties.SetAutomationId(button, "mode-" + id);
+                modeButtons[id] = button; modes.Children.Add(button);
+            }
+            modeGrid.Children.Add(modes);
+            modeRow.Child = modeGrid;
             body.Children.Add(modeRow);
+            SelectMode(mode);
             var choices = new WrapPanel();
             foreach (var theme in LineTheme.All)
             {
@@ -76,10 +85,31 @@ namespace ScreenLine
             PreviewKeyDown += delegate(object sender, KeyEventArgs args) { if (args.Key == Key.Escape) Close(); };
         }
 
+        internal Button ModeButton(string id) { return modeButtons[id]; }
+
         void Select(LineTheme theme)
         {
             apply(theme);
             Selected(theme);
+        }
+
+        void Choose(string mode)
+        {
+            if (Selection == mode) return;
+            Selection = mode;
+            SelectMode(mode);
+            if (applyMode != null) applyMode(mode);
+        }
+
+        void SelectMode(string mode)
+        {
+            Selection = mode;
+            foreach (var entry in modeButtons)
+            {
+                bool current = entry.Key == mode;
+                entry.Value.Tag = current ? "primary" : null;
+                System.Windows.Automation.AutomationProperties.SetItemStatus(entry.Value, current ? "已选择" : "");
+            }
         }
 
         void Selected(LineTheme theme)

@@ -144,6 +144,7 @@ namespace ScreenLine
         public event Action ToggleRequested;
         public event Action ScreenshotRequested;
         public event Action ExitRequested;
+        public event Action SystemThemeChanged;
 
         public WindowsEvents()
         {
@@ -157,6 +158,7 @@ namespace ScreenLine
         IntPtr Receive(IntPtr window, int message, IntPtr w, IntPtr l, ref bool handled)
         {
             if (message == 0x031D && ClipboardChanged != null) ClipboardChanged();
+            if (message == 0x001A && Marshal.PtrToStringAuto(l) == "ImmersiveColorSet" && SystemThemeChanged != null) SystemThemeChanged();
             if (message == 0x0312)
             {
                 int id = w.ToInt32();

@@ -72,6 +72,10 @@ namespace ScreenLine
             events.ClipboardChanged += Captures.ClipboardChanged;
             textClipboardSequence = WindowsNative.GetClipboardSequenceNumber();
             events.ClipboardChanged += CollectClipboardText;
+            events.SystemThemeChanged += delegate
+            {
+                if (Gallery.Store.State.ColorMode == "system") UiTheme.Apply(UiTheme.SystemDark);
+            };
             Captures.Arrived += Shelf.ShowNewCapture;
             Captures.Failed += Notice;
             using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("PicRope.Icon"))
@@ -292,18 +296,18 @@ namespace ScreenLine
         void ShowAppearance()
         {
             if (Appearance != null) { Appearance.Activate(); return; }
-            Appearance = new AppearanceWindow(Shelf.Appearance, Gallery, Gallery.Store.State.DarkMode, delegate(LineTheme theme)
+            Appearance = new AppearanceWindow(Shelf.Appearance, Gallery, Gallery.Store.State.ColorMode, delegate(LineTheme theme)
             {
                 Gallery.Store.State.Theme = theme.Id;
                 Gallery.Store.Save();
                 Shelf.ApplyTheme(theme);
                 Shelf.Reveal(true, false, 3);
-            }, delegate(bool dark)
+            }, delegate(string mode)
             {
-                if (Gallery.Store.State.DarkMode == dark) return;
-                Gallery.Store.State.DarkMode = dark;
+                if (Gallery.Store.State.ColorMode == mode) return;
+                Gallery.Store.State.ColorMode = mode;
                 Gallery.Store.Save();
-                UiTheme.Apply(dark);
+                UiTheme.Apply(UiTheme.Resolve(mode));
             });
             Appearance.Owner = Shelf;
             Shelf.ChoosingAppearance = true;
@@ -474,7 +478,7 @@ namespace ScreenLine
                 var store = new StateStore(StateStore.DefaultRoot);
                 var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
                 LightTheme.Install(app);
-                UiTheme.Apply(store.State.DarkMode);
+                UiTheme.Apply(UiTheme.Resolve(store.State.ColorMode));
                 DesktopController controller = null;
                 app.DispatcherUnhandledException += delegate(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs args) { store.Log(args.Exception); args.Handled = true; };
                 app.Startup += async delegate { controller = new DesktopController(store, WindowsNative.ScreenshotFolder()); await controller.Start(); };

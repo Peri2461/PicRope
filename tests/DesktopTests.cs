@@ -101,6 +101,7 @@ namespace ScreenLine.Tests
             string watched = Path.Combine(root, "WindowsScreenshots");
             Directory.CreateDirectory(watched);
             var store = new StateStore(Path.Combine(root, "profile"));
+            UiTheme.Apply(UiTheme.Resolve(store.State.ColorMode));
             controller = new DesktopController(store, watched, false);
             await controller.Start();
             if (darkModeOnly) { await CheckDarkMode(store); return; }
@@ -558,7 +559,8 @@ namespace ScreenLine.Tests
         static async Task CheckDarkMode(StateStore store)
         {
             var shelf = controller.Shelf;
-            Check(!UiTheme.Dark && !new StateStore(store.Root).State.DarkMode, "首次启动默认使用浅色外观");
+            Check(new StateStore(store.Root).State.ColorMode == "system", "首次启动默认跟随系统深浅色");
+            Check(UiTheme.Dark == UiTheme.SystemDark, "跟随系统使用系统当前深浅色");
             Directory.CreateDirectory(store.Inbox);
             byte[] bytes = Asset("深色模式", "浅色与深色可随时切换", Color.FromRgb(25, 40, 63));
             string path = Path.Combine(store.Inbox, "深色模式.png");
@@ -572,16 +574,23 @@ namespace ScreenLine.Tests
             controller.TrayMenu.AppearanceButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             var chooser = controller.Appearance;
             await Task.Delay(250);
-            Check(chooser != null && chooser.DarkSwitch != null, "外观面板提供深色模式开关");
-            Check(AutomationProperties.GetAutomationId(chooser.DarkSwitch) == "dark-mode", "深色模式开关提供自动化标识");
-            Check(chooser.DarkSwitch.IsChecked == false, "深色模式开关初始为关闭");
+            Check(chooser != null && chooser.ModeButton("dark") != null && chooser.ModeButton("light") != null && chooser.ModeButton("system") != null,
+                "外观面板提供跟随系统、浅色与深色三种模式");
+            Check(AutomationProperties.GetAutomationId(chooser.ModeButton("dark")) == "mode-dark", "深色模式按钮提供自动化标识");
+            Check(chooser.Selection == "system", "深浅色默认选中跟随系统");
 
-            chooser.DarkSwitch.IsChecked = true;
+            chooser.ModeButton("light").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Task.Delay(250);
-            Check(UiTheme.Dark, "打开开关即时切换到深色外观");
+            Check(chooser.Selection == "light" && !UiTheme.Dark, "选择浅色模式即时切换到浅色外观");
+            lightSurface = ((SolidColorBrush)card.Surface.Background).Color;
+            Check(lightSurface.R > 200, "已挂图片卡片即时使用浅色底");
+
+            chooser.ModeButton("dark").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Task.Delay(250);
+            Check(chooser.Selection == "dark" && UiTheme.Dark, "选择深色模式即时切换到深色外观");
             Check(((SolidColorBrush)Application.Current.Resources["Ui.Surface"]).Color == (Color)ColorConverter.ConvertFromString("#242624"),
                 "深色外观使用深色表面色");
-            Check(new StateStore(store.Root).State.DarkMode, "深色模式选择即时保存");
+            Check(new StateStore(store.Root).State.ColorMode == "dark", "深色模式选择即时保存");
             Color darkSurface = ((SolidColorBrush)card.Surface.Background).Color;
             Check(darkSurface != lightSurface && darkSurface.R < 80, "已挂图片卡片即时使用深色底");
 
@@ -659,20 +668,23 @@ namespace ScreenLine.Tests
             textWindow.Close();
             await Task.Delay(150);
 
-            UiTheme.Apply(new StateStore(store.Root).State.DarkMode);
+            UiTheme.Apply(UiTheme.Resolve(new StateStore(store.Root).State.ColorMode));
             controller.Dispose();
             controller = new DesktopController(new StateStore(store.Root), Path.Combine(Path.GetDirectoryName(store.Root), "WindowsScreenshots"), false);
             await controller.Start();
             Check(UiTheme.Dark && controller.Gallery.Items.Count == 1, "重新启动恢复深色模式与挂图");
             controller.TrayMenu.AppearanceButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Task.Delay(250);
-            Check(controller.Appearance.DarkSwitch.IsChecked == true, "重新启动后深色模式开关保持开启");
+            Check(controller.Appearance.Selection == "dark", "重新启动后深色模式保持选中");
             var restored = controller.Shelf.CardFor(path);
             Check(restored != null && ((SolidColorBrush)restored.Surface.Background).Color.R < 80, "恢复的挂图沿用深色底");
-            controller.Appearance.DarkSwitch.IsChecked = false;
+            controller.Appearance.ModeButton("light").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Task.Delay(250);
-            Check(!UiTheme.Dark && !new StateStore(store.Root).State.DarkMode, "关闭开关恢复浅色并保存");
-            Check(((SolidColorBrush)restored.Surface.Background).Color.R > 200, "关闭开关后挂图恢复浅色底");
+            Check(!UiTheme.Dark && new StateStore(store.Root).State.ColorMode == "light", "切换浅色模式恢复浅色并保存");
+            Check(((SolidColorBrush)restored.Surface.Background).Color.R > 200, "切换浅色后挂图恢复浅色底");
+            controller.Appearance.ModeButton("system").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Task.Delay(250);
+            Check(new StateStore(store.Root).State.ColorMode == "system" && UiTheme.Dark == UiTheme.SystemDark, "切换跟随系统后按系统深浅色显示");
             controller.Appearance.Close();
             Check(!File.Exists(Path.Combine(store.Root, "error.log")), "深色模式切换与重启全过程没有运行错误");
         }
