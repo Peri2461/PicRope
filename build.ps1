@@ -1,4 +1,4 @@
-﻿param([switch]$DesktopTests, [switch]$FolderTests, [switch]$MenuTests, [switch]$EditorTests, [switch]$ThemeTests, [switch]$WindTests, [switch]$BasketTests, [switch]$ScrollTests, [switch]$BasketAppearanceTests, [switch]$BasketMotionTests, [switch]$UpdateTests, [switch]$TextTests, [switch]$EnvelopeMotionTests, [switch]$MonitorTests, [switch]$ScreenshotTests, [switch]$Package)
+﻿param([switch]$DesktopTests, [switch]$FolderTests, [switch]$MenuTests, [switch]$EditorTests, [switch]$ThemeTests, [switch]$WindTests, [switch]$BasketTests, [switch]$ScrollTests, [switch]$BasketAppearanceTests, [switch]$BasketMotionTests, [switch]$DarkModeTests, [switch]$UpdateTests, [switch]$TextTests, [switch]$EnvelopeMotionTests, [switch]$MonitorTests, [switch]$ScreenshotTests, [switch]$Package)
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
 $frameworkPath = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
@@ -44,12 +44,13 @@ if (-not ($FolderTests -or $MenuTests -or $EditorTests -or $ThemeTests -or $Wind
     if ($LASTEXITCODE -ne 0) { throw '核心测试未通过' }
 }
 
-if ($DesktopTests -or $MenuTests -or $EditorTests -or $ThemeTests -or $WindTests -or $BasketTests -or $ScrollTests -or $BasketAppearanceTests -or $BasketMotionTests) {
+if ($DesktopTests -or $MenuTests -or $EditorTests -or $ThemeTests -or $WindTests -or $BasketTests -or $ScrollTests -or $BasketAppearanceTests -or $BasketMotionTests -or $DarkModeTests) {
     $desktopReferences = $references + @("/r:$frameworkPath\WPF\UIAutomationClient.dll", "/r:$frameworkPath\WPF\UIAutomationTypes.dll", "/r:$frameworkPath\WPF\UIAutomationProvider.dll")
     & $compilerPath /nologo /target:exe /platform:x64 /codepage:65001 "/out:$buildPath\DesktopTests.exe" /main:ScreenLine.Tests.DesktopTests "/win32manifest:$manifestPath" "/win32icon:$iconPath" "/resource:$iconPath,PicRope.Icon" $basketResources $desktopReferences $sources (Join-Path $projectRoot 'tests\DesktopTests.cs')
     if ($LASTEXITCODE -ne 0) { throw '桌面测试构建失败' }
     Copy-Item -LiteralPath (Join-Path $projectRoot 'src\App.config') -Destination (Join-Path $buildPath 'DesktopTests.exe.config')
     if ($BasketMotionTests) { & (Join-Path $buildPath 'DesktopTests.exe') --basket-motion }
+    elseif ($DarkModeTests) { & (Join-Path $buildPath 'DesktopTests.exe') --dark-mode }
     elseif ($BasketAppearanceTests) { & (Join-Path $buildPath 'DesktopTests.exe') --basket-appearance }
     elseif ($ScrollTests) { & (Join-Path $buildPath 'DesktopTests.exe') --scroll-bounds }
     elseif ($BasketTests) { & (Join-Path $buildPath 'DesktopTests.exe') --basket }

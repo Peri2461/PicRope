@@ -12,7 +12,7 @@ namespace ScreenLine
     internal sealed class UpdateWindow : Window
     {
         readonly CancellationTokenSource cancellation = new CancellationTokenSource();
-        readonly TextBlock status = new TextBlock { Foreground = LightTheme.Brush("#65717F"), FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 14, 0, 8) };
+        readonly TextBlock status = UiTheme.Paint(new TextBlock { FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 14, 0, 8) }, TextBlock.ForegroundProperty, "Ui.TextMuted");
         readonly ProgressBar progress = new ProgressBar { Height = 5, Minimum = 0, Maximum = 100, Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 16) };
         readonly Button install;
         string downloaded;
@@ -28,14 +28,14 @@ namespace ScreenLine
             AutomationProperties.SetAutomationId(this, "AppUpdate");
             var body = new StackPanel();
             var heading = new Grid();
-            heading.Children.Add(new TextBlock { Text = "发现新版本", FontSize = 21, FontWeight = FontWeights.SemiBold, Foreground = LightTheme.Brush("#283343") });
+            heading.Children.Add(UiTheme.Paint(new TextBlock { Text = "发现新版本", FontSize = 21, FontWeight = FontWeights.SemiBold }, TextBlock.ForegroundProperty, "Ui.TextPrimary"));
             var close = LightTheme.Button("", Close, "quiet"); close.Content = LightTheme.CloseIcon();
             close.MinWidth = 0; close.Width = close.Height = 28; close.Padding = new Thickness(0); close.HorizontalAlignment = HorizontalAlignment.Right;
             AutomationProperties.SetName(close, "关闭更新窗口"); heading.Children.Add(close); body.Children.Add(heading);
-            body.Children.Add(new TextBlock { Text = "图绳 " + AppUpdates.CurrentVersion + " → " + release.Version, FontSize = 14, Foreground = LightTheme.Brush("#65717F"), Margin = new Thickness(0, 10, 0, 20) });
+            body.Children.Add(UiTheme.Paint(new TextBlock { Text = "图绳 " + AppUpdates.CurrentVersion + " → " + release.Version, FontSize = 14, Margin = new Thickness(0, 10, 0, 20) }, TextBlock.ForegroundProperty, "Ui.TextMuted"));
             body.Children.Add(new ScrollViewer { MaxHeight = 220, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                Content = new TextBlock { Text = String.IsNullOrWhiteSpace(release.Notes) ? "新版本已准备好。" : release.Notes,
-                    FontSize = 13, LineHeight = 22, TextWrapping = TextWrapping.Wrap, Foreground = LightTheme.Brush("#343D49") } });
+                Content = UiTheme.Paint(new TextBlock { Text = String.IsNullOrWhiteSpace(release.Notes) ? "新版本已准备好。" : release.Notes,
+                    FontSize = 13, LineHeight = 22, TextWrapping = TextWrapping.Wrap }, TextBlock.ForegroundProperty, "Ui.TextBody") });
             status.Text = "下载完成后重启更新，保留图片和设置。"; body.Children.Add(status); body.Children.Add(progress);
             var actions = new Grid { Margin = new Thickness(0, 4, 0, 0) };
             var details = LightTheme.Button("查看发布说明", delegate { Process.Start(new ProcessStartInfo(release.Url) { UseShellExecute = true }); }, "quiet");

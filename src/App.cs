@@ -292,12 +292,18 @@ namespace ScreenLine
         void ShowAppearance()
         {
             if (Appearance != null) { Appearance.Activate(); return; }
-            Appearance = new AppearanceWindow(Shelf.Appearance, Gallery, delegate(LineTheme theme)
+            Appearance = new AppearanceWindow(Shelf.Appearance, Gallery, Gallery.Store.State.DarkMode, delegate(LineTheme theme)
             {
                 Gallery.Store.State.Theme = theme.Id;
                 Gallery.Store.Save();
                 Shelf.ApplyTheme(theme);
                 Shelf.Reveal(true, false, 3);
+            }, delegate(bool dark)
+            {
+                if (Gallery.Store.State.DarkMode == dark) return;
+                Gallery.Store.State.DarkMode = dark;
+                Gallery.Store.Save();
+                UiTheme.Apply(dark);
             });
             Appearance.Owner = Shelf;
             Shelf.ChoosingAppearance = true;
@@ -468,6 +474,7 @@ namespace ScreenLine
                 var store = new StateStore(StateStore.DefaultRoot);
                 var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
                 LightTheme.Install(app);
+                UiTheme.Apply(store.State.DarkMode);
                 DesktopController controller = null;
                 app.DispatcherUnhandledException += delegate(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs args) { store.Log(args.Exception); args.Handled = true; };
                 app.Startup += async delegate { controller = new DesktopController(store, WindowsNative.ScreenshotFolder()); await controller.Start(); };

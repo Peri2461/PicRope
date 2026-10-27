@@ -193,8 +193,8 @@ namespace ScreenLine
             root.Children.Add(textHolder); UpdateTexts();
 
             var help = new StackPanel { Margin = new Thickness(20, 14, 20, 14) };
-            helpTitle.FontSize = 15; helpTitle.FontWeight = FontWeights.SemiBold; helpTitle.Foreground = Brushes.Black; helpTitle.HorizontalAlignment = HorizontalAlignment.Center;
-            helpDetail.FontSize = 12; helpDetail.Foreground = Brushes.DimGray; helpDetail.Margin = new Thickness(0, 8, 0, 12); helpDetail.HorizontalAlignment = HorizontalAlignment.Center;
+            helpTitle.FontSize = 15; helpTitle.FontWeight = FontWeights.SemiBold; UiTheme.Paint(helpTitle, TextBlock.ForegroundProperty, "Ui.TextPrimary"); helpTitle.HorizontalAlignment = HorizontalAlignment.Center;
+            helpDetail.FontSize = 12; UiTheme.Paint(helpDetail, TextBlock.ForegroundProperty, "Ui.TextSecondary"); helpDetail.Margin = new Thickness(0, 8, 0, 12); helpDetail.HorizontalAlignment = HorizontalAlignment.Center;
             help.Children.Add(helpTitle); help.Children.Add(helpDetail);
             openBasket.Content = "打开图片篮子"; openBasket.Style = LightTheme.ButtonStyle; openBasket.Tag = "primary";
             openBasket.HorizontalAlignment = HorizontalAlignment.Center; openBasket.Margin = new Thickness(0, 0, 0, 8);
@@ -209,9 +209,9 @@ namespace ScreenLine
             help.Children.Add(enable);
             hint.Child = help;
             hint.Width = 380;
-            hint.Background = new SolidColorBrush(Color.FromArgb(248, 255, 255, 255));
+            UiTheme.Paint(hint, Border.BackgroundProperty, "Ui.SurfaceGlass");
             hint.CornerRadius = new CornerRadius(16);
-            hint.BorderBrush = new SolidColorBrush(Color.FromRgb(218, 224, 232));
+            UiTheme.Paint(hint, Border.BorderBrushProperty, "Ui.Border");
             hint.BorderThickness = new Thickness(1);
             hint.Effect = new DropShadowEffect { BlurRadius = 16, ShadowDepth = 3, Opacity = 0.18 };
             content.Children.Add(hint);
@@ -897,8 +897,8 @@ namespace ScreenLine
             Opacity = 0;
             Surface.RenderTransform = photoScale;
             Surface.RenderTransformOrigin = new Point(0.5, 0);
-            Surface.Background = new SolidColorBrush(Color.FromArgb(245, 255, 255, 255));
-            Surface.BorderBrush = new SolidColorBrush(Color.FromRgb(220, 225, 233));
+            UiTheme.Paint(Surface, Border.BackgroundProperty, "Ui.Surface");
+            UiTheme.Paint(Surface, Border.BorderBrushProperty, "Ui.Border");
             Surface.BorderThickness = new Thickness(1);
             Surface.CornerRadius = new CornerRadius(12);
             Surface.Effect = new DropShadowEffect { BlurRadius = 14, ShadowDepth = 4, Opacity = 0.2 };
@@ -945,13 +945,13 @@ namespace ScreenLine
             SetLeft(Grip, 68); SetTop(Grip, -4);
             copied.Width = 84;
             copied.Padding = new Thickness(10, 4, 10, 4);
-            copied.Background = Brushes.White;
-            copied.BorderBrush = LightTheme.Brush("#DCE1E9");
+            UiTheme.Paint(copied, Border.BackgroundProperty, "Ui.SurfaceRaised");
+            UiTheme.Paint(copied, Border.BorderBrushProperty, "Ui.Border");
             copied.BorderThickness = new Thickness(1);
             copied.CornerRadius = new CornerRadius(12);
             copied.Effect = new DropShadowEffect { BlurRadius = 8, ShadowDepth = 2, Opacity = 0.18 };
-            copied.Child = new TextBlock { Text = "✓ 已复制", FontSize = 12, FontWeight = FontWeights.SemiBold,
-                Foreground = LightTheme.Brush("#20408E"), TextAlignment = TextAlignment.Center };
+            copied.Child = UiTheme.Paint(new TextBlock { Text = "✓ 已复制", FontSize = 12, FontWeight = FontWeights.SemiBold, TextAlignment = TextAlignment.Center },
+                TextBlock.ForegroundProperty, "Ui.AccentText");
             copied.Opacity = 0;
             copied.IsHitTestVisible = false;
             Children.Add(copied);
@@ -1149,7 +1149,7 @@ namespace ScreenLine
             Topmost = true;
             IsHitTestVisible = false;
             Opacity = 0.8;
-            Content = new Border { CornerRadius = new CornerRadius(10), Background = Brushes.White, Padding = new Thickness(6), Child = new Image { Source = image } };
+            Content = UiTheme.Paint(new Border { CornerRadius = new CornerRadius(10), Padding = new Thickness(6), Child = new Image { Source = image } }, Border.BackgroundProperty, "Ui.Surface");
             SourceInitialized += delegate
             {
                 handle = new WindowInteropHelper(this).Handle;

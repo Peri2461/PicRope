@@ -14,17 +14,17 @@ namespace ScreenLine
 <ResourceDictionary xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'>
   <Style x:Key='Menu' TargetType='ContextMenu'>
     <Setter Property='Width' Value='276'/><Setter Property='FontFamily' Value='Segoe UI'/>
-    <Setter Property='FontSize' Value='13'/><Setter Property='Foreground' Value='#283343'/>
+    <Setter Property='FontSize' Value='13'/><Setter Property='Foreground' Value='{DynamicResource Ui.TextPrimary}'/>
     <Setter Property='HasDropShadow' Value='False'/><Setter Property='SnapsToDevicePixels' Value='True'/>
     <Setter Property='Template'><Setter.Value><ControlTemplate TargetType='ContextMenu'>
-      <Border Margin='16' Padding='6' Background='White' BorderBrush='#E0E4EA' BorderThickness='1' CornerRadius='14'>
+      <Border Margin='16' Padding='6' Background='{DynamicResource Ui.SurfaceRaised}' BorderBrush='{DynamicResource Ui.Border}' BorderThickness='1' CornerRadius='14'>
         <Border.Effect><DropShadowEffect Color='#26394C' BlurRadius='22' ShadowDepth='6' Opacity='0.16'/></Border.Effect>
         <StackPanel IsItemsHost='True' KeyboardNavigation.DirectionalNavigation='Cycle'/>
       </Border>
     </ControlTemplate></Setter.Value></Setter>
   </Style>
   <Style x:Key='Row' TargetType='MenuItem'>
-    <Setter Property='Background' Value='Transparent'/><Setter Property='Foreground' Value='#283343'/>
+    <Setter Property='Background' Value='Transparent'/><Setter Property='Foreground' Value='{DynamicResource Ui.TextPrimary}'/>
     <Setter Property='HorizontalContentAlignment' Value='Stretch'/>
     <Setter Property='Template'><Setter.Value><ControlTemplate TargetType='MenuItem'>
       <Border x:Name='Row' Height='36' Padding='11,0' CornerRadius='7' Background='{TemplateBinding Background}'>
@@ -33,27 +33,27 @@ namespace ScreenLine
           <ContentPresenter ContentSource='Icon' VerticalAlignment='Center'/>
           <ContentPresenter Grid.Column='2' ContentSource='Header' RecognizesAccessKey='True' VerticalAlignment='Center'/>
           <StackPanel Grid.Column='3' Orientation='Horizontal' VerticalAlignment='Center'>
-            <TextBlock Text='{TemplateBinding InputGestureText}' Foreground='#65717F' FontSize='10' Margin='10,0,0,0' VerticalAlignment='Center'/>
-            <Border x:Name='CheckBox' Visibility='Collapsed' Width='15' Height='15' Margin='12,0,0,0' CornerRadius='4' BorderThickness='1' BorderBrush='#CAD3DF' Background='#F5F7FA'>
-              <Path x:Name='Check' Visibility='Collapsed' Data='M3,8 L6,11 L12,4' Stroke='White' StrokeThickness='1.5' StrokeStartLineCap='Round' StrokeEndLineCap='Round'/>
+            <TextBlock Text='{TemplateBinding InputGestureText}' Foreground='{DynamicResource Ui.TextMuted}' FontSize='10' Margin='10,0,0,0' VerticalAlignment='Center'/>
+            <Border x:Name='CheckBox' Visibility='Collapsed' Width='15' Height='15' Margin='12,0,0,0' CornerRadius='4' BorderThickness='1' BorderBrush='{DynamicResource Ui.BorderStrong}' Background='{DynamicResource Ui.SurfaceSubtle}'>
+              <Path x:Name='Check' Visibility='Collapsed' Data='M3,8 L6,11 L12,4' Stroke='{DynamicResource Ui.White}' StrokeThickness='1.5' StrokeStartLineCap='Round' StrokeEndLineCap='Round'/>
             </Border>
           </StackPanel>
         </Grid>
       </Border>
       <ControlTemplate.Triggers>
-        <Trigger Property='Tag' Value='primary'><Setter TargetName='Row' Property='Background' Value='#EDF4FF'/><Setter Property='Foreground' Value='#2463AE'/></Trigger>
-        <Trigger Property='Tag' Value='danger'><Setter Property='Foreground' Value='#BB514E'/></Trigger>
-        <Trigger Property='IsHighlighted' Value='True'><Setter TargetName='Row' Property='Background' Value='#F0F3F7'/></Trigger>
-        <MultiTrigger><MultiTrigger.Conditions><Condition Property='Tag' Value='primary'/><Condition Property='IsHighlighted' Value='True'/></MultiTrigger.Conditions><Setter TargetName='Row' Property='Background' Value='#E0ECFF'/></MultiTrigger>
-        <MultiTrigger><MultiTrigger.Conditions><Condition Property='Tag' Value='danger'/><Condition Property='IsHighlighted' Value='True'/></MultiTrigger.Conditions><Setter TargetName='Row' Property='Background' Value='#FFF0ED'/></MultiTrigger>
+        <Trigger Property='Tag' Value='primary'><Setter TargetName='Row' Property='Background' Value='{DynamicResource Ui.AccentSoft}'/><Setter Property='Foreground' Value='{DynamicResource Ui.Accent}'/></Trigger>
+        <Trigger Property='Tag' Value='danger'><Setter Property='Foreground' Value='{DynamicResource Ui.Danger}'/></Trigger>
+        <Trigger Property='IsHighlighted' Value='True'><Setter TargetName='Row' Property='Background' Value='{DynamicResource Ui.Hover}'/></Trigger>
+        <MultiTrigger><MultiTrigger.Conditions><Condition Property='Tag' Value='primary'/><Condition Property='IsHighlighted' Value='True'/></MultiTrigger.Conditions><Setter TargetName='Row' Property='Background' Value='{DynamicResource Ui.AccentSoftHover}'/></MultiTrigger>
+        <MultiTrigger><MultiTrigger.Conditions><Condition Property='Tag' Value='danger'/><Condition Property='IsHighlighted' Value='True'/></MultiTrigger.Conditions><Setter TargetName='Row' Property='Background' Value='{DynamicResource Ui.DangerSoft}'/></MultiTrigger>
         <Trigger Property='IsCheckable' Value='True'><Setter TargetName='CheckBox' Property='Visibility' Value='Visible'/></Trigger>
-        <Trigger Property='IsChecked' Value='True'><Setter TargetName='CheckBox' Property='Background' Value='#2463AE'/><Setter TargetName='CheckBox' Property='BorderBrush' Value='#2463AE'/><Setter TargetName='Check' Property='Visibility' Value='Visible'/></Trigger>
+        <Trigger Property='IsChecked' Value='True'><Setter TargetName='CheckBox' Property='Background' Value='{DynamicResource Ui.Accent}'/><Setter TargetName='CheckBox' Property='BorderBrush' Value='{DynamicResource Ui.Accent}'/><Setter TargetName='Check' Property='Visibility' Value='Visible'/></Trigger>
         <Trigger Property='IsEnabled' Value='False'><Setter TargetName='Row' Property='Opacity' Value='0.45'/></Trigger>
       </ControlTemplate.Triggers>
     </ControlTemplate></Setter.Value></Setter>
   </Style>
   <Style x:Key='Separator' TargetType='Separator'>
-    <Setter Property='Template'><Setter.Value><ControlTemplate TargetType='Separator'><Border Height='1' Background='#E8EBEF' Margin='8,7'/></ControlTemplate></Setter.Value></Setter>
+    <Setter Property='Template'><Setter.Value><ControlTemplate TargetType='Separator'><Border Height='1' Background='{DynamicResource Ui.Divider}' Margin='8,7'/></ControlTemplate></Setter.Value></Setter>
   </Style>
   <ControlTemplate x:Key='Note' TargetType='MenuItem'><ContentPresenter ContentSource='Header'/></ControlTemplate>
 </ResourceDictionary>");
@@ -98,8 +98,8 @@ namespace ScreenLine
             Style = (Style)theme["Menu"];
             TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
             var heading = new Grid { Margin = new Thickness(11, 9, 11, 13) };
-            heading.Children.Add(new TextBlock { Text = title, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Brush("#536172") });
-            details = new TextBlock { Text = detail, FontSize = 11, Foreground = Brush("#65717F"), HorizontalAlignment = HorizontalAlignment.Right };
+            heading.Children.Add(UiTheme.Paint(new TextBlock { Text = title, FontSize = 11, FontWeight = FontWeights.SemiBold }, TextBlock.ForegroundProperty, "Ui.TextSecondary"));
+            details = UiTheme.Paint(new TextBlock { Text = detail, FontSize = 11, HorizontalAlignment = HorizontalAlignment.Right }, TextBlock.ForegroundProperty, "Ui.TextMuted");
             heading.Children.Add(details);
             Note(heading);
         }
@@ -108,14 +108,15 @@ namespace ScreenLine
 
         public MenuItem AddAction(string title, string icon, Action action, bool primary = false, bool danger = false)
         {
+            var mark = UiTheme.Paint(new Path
+            {
+                Data = Geometry.Parse(icons[icon]), StrokeThickness = 1.65,
+                StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round
+            }, Shape.StrokeProperty, danger ? "Ui.Danger" : (primary ? "Ui.Accent" : "Ui.TextMuted"));
             var entry = new MenuItem
             {
                 Header = title, Style = (Style)theme["Row"], Tag = danger ? "danger" : (primary ? "primary" : null),
-                Icon = new Viewbox
-                {
-                    Width = 18, Height = 18,
-                    Child = new Path { Data = Geometry.Parse(icons[icon]), Stroke = Brush(danger ? "#BB514E" : (primary ? "#2463AE" : "#667487")), StrokeThickness = 1.65, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round }
-                }
+                Icon = new Viewbox { Width = 18, Height = 18, Child = mark }
             };
             entry.Click += delegate { action(); };
             Items.Add(entry);
@@ -126,14 +127,12 @@ namespace ScreenLine
 
         public void Footer(string text)
         {
-            Note(new TextBlock { Text = text, FontSize = 10, Foreground = Brush("#65717F"), Margin = new Thickness(11, 12, 11, 8) });
+            Note(UiTheme.Paint(new TextBlock { Text = text, FontSize = 10, Margin = new Thickness(11, 12, 11, 8) }, TextBlock.ForegroundProperty, "Ui.TextMuted"));
         }
 
         void Note(UIElement content)
         {
             Items.Add(new MenuItem { Header = content, IsEnabled = false, Focusable = false, Template = (ControlTemplate)theme["Note"] });
         }
-
-        static SolidColorBrush Brush(string value) { return (SolidColorBrush)new BrushConverter().ConvertFromString(value); }
     }
 }

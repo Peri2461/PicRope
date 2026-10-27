@@ -23,13 +23,13 @@ namespace ScreenLine
             FontFamily = new FontFamily("Segoe UI");
             var content = new StackPanel();
             var heading = new Grid { Margin = new Thickness(0, 0, 0, 8) };
-            heading.Children.Add(new TextBlock { Text = "截图晾衣绳", FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = LightTheme.Brush("#283343"), VerticalAlignment = VerticalAlignment.Center });
+            heading.Children.Add(UiTheme.Paint(new TextBlock { Text = "截图晾衣绳", FontSize = 13, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center }, TextBlock.ForegroundProperty, "Ui.TextPrimary"));
             var close = LightTheme.Button("×", Close, "quiet");
             close.Width = close.Height = 24; close.MinWidth = 0; close.Padding = new Thickness(0); close.FontSize = 18;
             close.HorizontalAlignment = HorizontalAlignment.Right;
             AutomationProperties.SetName(close, "关闭提示");
             heading.Children.Add(close); content.Children.Add(heading);
-            content.Children.Add(new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, FontSize = 13, LineHeight = 21, Foreground = LightTheme.Brush("#65717F") });
+            content.Children.Add(UiTheme.Paint(new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, FontSize = 13, LineHeight = 21 }, TextBlock.ForegroundProperty, "Ui.TextMuted"));
             var card = LightTheme.Card(content); card.Padding = new Thickness(20, 16, 20, 18);
             Content = card;
             SourceInitialized += delegate { WindowsNative.PrepareOverlay(new WindowInteropHelper(this).Handle); };

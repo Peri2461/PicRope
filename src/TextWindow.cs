@@ -57,9 +57,9 @@ namespace ScreenLine
         readonly TextCollection texts;
         readonly ShelfWindow shelf;
         readonly TextBlock count = new TextBlock();
-        readonly TextBlock feedback = new TextBlock { Foreground = LightTheme.Brush("#65717F"), FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
-        readonly TextBlock empty = new TextBlock { TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Foreground = LightTheme.Brush("#65717F"), Margin = new Thickness(20) };
-        readonly Polygon pointer = new Polygon { Points = new PointCollection { new Point(0, 12), new Point(12, 0), new Point(24, 12) }, Fill = Brushes.White, Width = 24, Height = 12, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
+        readonly TextBlock feedback = UiTheme.Paint(new TextBlock { FontSize = 11, VerticalAlignment = VerticalAlignment.Center }, TextBlock.ForegroundProperty, "Ui.TextMuted");
+        readonly TextBlock empty = UiTheme.Paint(new TextBlock { TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(20) }, TextBlock.ForegroundProperty, "Ui.TextMuted");
+        readonly Polygon pointer = UiTheme.Paint(new Polygon { Points = new PointCollection { new Point(0, 12), new Point(12, 0), new Point(24, 12) }, Width = 24, Height = 12, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top }, System.Windows.Shapes.Shape.FillProperty, "Ui.SurfaceRaised");
         readonly DispatcherTimer feedbackTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         internal readonly TextBox Search = new TextBox();
         internal readonly ListBox List = new ListBox();
@@ -90,9 +90,9 @@ namespace ScreenLine
 
             var header = new Grid { Margin = new Thickness(18, 0, 14, 0) };
             var heading = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            heading.Children.Add(new TextBlock { Text = "文字", FontSize = 18, FontWeight = FontWeights.SemiBold, Foreground = LightTheme.Brush("#283343") });
-            count.FontSize = 12; count.Foreground = LightTheme.Brush("#536172");
-            heading.Children.Add(new Border { Child = count, Background = LightTheme.Brush("#F0F3F7"), CornerRadius = new CornerRadius(8), Padding = new Thickness(6, 1, 6, 1), Margin = new Thickness(8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center });
+            heading.Children.Add(UiTheme.Paint(new TextBlock { Text = "文字", FontSize = 18, FontWeight = FontWeights.SemiBold }, TextBlock.ForegroundProperty, "Ui.TextPrimary"));
+            count.FontSize = 12; UiTheme.Paint(count, TextBlock.ForegroundProperty, "Ui.TextSecondary");
+            heading.Children.Add(UiTheme.Paint(new Border { Child = count, CornerRadius = new CornerRadius(8), Padding = new Thickness(6, 1, 6, 1), Margin = new Thickness(8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center }, Border.BackgroundProperty, "Ui.Hover"));
             heading.Children.Add(feedback); header.Children.Add(heading);
             var close = LightTheme.Button("", Close, "quiet"); close.Content = LightTheme.CloseIcon();
             close.Width = close.Height = 28; close.MinWidth = 0; close.Padding = new Thickness(0); close.HorizontalAlignment = HorizontalAlignment.Right;
@@ -100,10 +100,10 @@ namespace ScreenLine
 
             var searchPanel = new Grid { Margin = new Thickness(18, 0, 18, 10) };
             Search.BorderThickness = new Thickness(0); Search.Background = Brushes.Transparent; Search.Padding = new Thickness(10, 6, 10, 6);
-            Search.VerticalContentAlignment = VerticalAlignment.Center; Search.FontSize = 13; Search.Foreground = LightTheme.Brush("#283343");
+            Search.VerticalContentAlignment = VerticalAlignment.Center; Search.FontSize = 13; UiTheme.Paint(Search, Control.ForegroundProperty, "Ui.TextPrimary");
             AutomationProperties.SetName(Search, "搜索文字");
-            searchPanel.Children.Add(new Border { CornerRadius = new CornerRadius(7), BorderBrush = LightTheme.Brush("#DCE2EA"), BorderThickness = new Thickness(1), Child = Search });
-            var placeholder = new TextBlock { Text = "搜索文字", IsHitTestVisible = false, Margin = new Thickness(11, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, FontSize = 13, Foreground = LightTheme.Brush("#8390A1") };
+            searchPanel.Children.Add(UiTheme.Paint(new Border { CornerRadius = new CornerRadius(7), BorderThickness = new Thickness(1), Child = Search }, Border.BorderBrushProperty, "Ui.BorderStrong"));
+            var placeholder = UiTheme.Paint(new TextBlock { Text = "搜索文字", IsHitTestVisible = false, Margin = new Thickness(11, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, FontSize = 13 }, TextBlock.ForegroundProperty, "Ui.TextFaint");
             searchPanel.Children.Add(placeholder);
             Search.TextChanged += delegate { placeholder.Visibility = Search.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed; Refresh(); };
             Grid.SetRow(searchPanel, 1); body.Children.Add(searchPanel);
@@ -116,21 +116,21 @@ namespace ScreenLine
             List.ItemContainerStyle = (Style)XamlReader.Parse(@"<Style xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' TargetType='ListBoxItem'>
               <Setter Property='HorizontalContentAlignment' Value='Stretch'/><Setter Property='Padding' Value='0'/><Setter Property='Margin' Value='0'/><Setter Property='Background' Value='Transparent'/>
               <Setter Property='Template'><Setter.Value><ControlTemplate TargetType='ListBoxItem'><Border x:Name='Row' Background='{TemplateBinding Background}' CornerRadius='7'><ContentPresenter/></Border>
-              <ControlTemplate.Triggers><Trigger Property='IsMouseOver' Value='True'><Setter TargetName='Row' Property='Background' Value='#F4F7FB'/></Trigger>
-              <Trigger Property='IsSelected' Value='True'><Setter TargetName='Row' Property='Background' Value='#EDF4FF'/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>");
+              <ControlTemplate.Triggers><Trigger Property='IsMouseOver' Value='True'><Setter TargetName='Row' Property='Background' Value='{DynamicResource Ui.Hover}'/></Trigger>
+              <Trigger Property='IsSelected' Value='True'><Setter TargetName='Row' Property='Background' Value='{DynamicResource Ui.AccentSoft}'/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>");
             List.ItemTemplate = (DataTemplate)XamlReader.Parse(@"<DataTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' xmlns:local='clr-namespace:ScreenLine;assembly=__ASSEMBLY__'>
               <DataTemplate.Resources><local:TextTime x:Key='TextTime'/><Geometry x:Key='CopyIcon'>__COPY__</Geometry><Geometry x:Key='TrashIcon'>__TRASH__</Geometry><Style x:Key='IconButton' TargetType='Button'>
-                <Setter Property='Width' Value='28'/><Setter Property='Height' Value='30'/><Setter Property='Cursor' Value='Hand'/><Setter Property='Foreground' Value='#647386'/><Setter Property='Background' Value='Transparent'/>
+                <Setter Property='Width' Value='28'/><Setter Property='Height' Value='30'/><Setter Property='Cursor' Value='Hand'/><Setter Property='Foreground' Value='{DynamicResource Ui.TextMuted}'/><Setter Property='Background' Value='Transparent'/>
                 <Setter Property='Template'><Setter.Value><ControlTemplate TargetType='Button'><Border x:Name='Surface' Background='{TemplateBinding Background}' CornerRadius='5'><ContentPresenter HorizontalAlignment='Center' VerticalAlignment='Center'/></Border>
-                <ControlTemplate.Triggers><Trigger Property='IsMouseOver' Value='True'><Setter TargetName='Surface' Property='Background' Value='#E7EEF8'/><Setter Property='Foreground' Value='#2463AE'/></Trigger>
-                <Trigger Property='IsKeyboardFocused' Value='True'><Setter TargetName='Surface' Property='BorderBrush' Value='#6E97CB'/><Setter TargetName='Surface' Property='BorderThickness' Value='1'/></Trigger>
-                <MultiTrigger><MultiTrigger.Conditions><Condition Property='Tag' Value='delete'/><Condition Property='IsMouseOver' Value='True'/></MultiTrigger.Conditions><Setter Property='Foreground' Value='#B74E4A'/><Setter TargetName='Surface' Property='Background' Value='#FFF0ED'/></MultiTrigger>
+                <ControlTemplate.Triggers><Trigger Property='IsMouseOver' Value='True'><Setter TargetName='Surface' Property='Background' Value='{DynamicResource Ui.HoverAccent}'/><Setter Property='Foreground' Value='{DynamicResource Ui.Accent}'/></Trigger>
+                <Trigger Property='IsKeyboardFocused' Value='True'><Setter TargetName='Surface' Property='BorderBrush' Value='{DynamicResource Ui.Focus}'/><Setter TargetName='Surface' Property='BorderThickness' Value='1'/></Trigger>
+                <MultiTrigger><MultiTrigger.Conditions><Condition Property='Tag' Value='delete'/><Condition Property='IsMouseOver' Value='True'/></MultiTrigger.Conditions><Setter Property='Foreground' Value='{DynamicResource Ui.DangerStrong}'/><Setter TargetName='Surface' Property='Background' Value='{DynamicResource Ui.DangerSoft}'/></MultiTrigger>
                 </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style></DataTemplate.Resources>
-              <Border BorderBrush='#EDF0F4' BorderThickness='0,0,0,1' Padding='12,10,8,10'><Grid><Grid.ColumnDefinitions><ColumnDefinition Width='*'/><ColumnDefinition Width='64'/></Grid.ColumnDefinitions>
+              <Border BorderBrush='{DynamicResource Ui.Divider}' BorderThickness='0,0,0,1' Padding='12,10,8,10'><Grid><Grid.ColumnDefinitions><ColumnDefinition Width='*'/><ColumnDefinition Width='64'/></Grid.ColumnDefinitions>
                 <StackPanel Margin='0,0,8,0'>
-                  <Grid><TextBlock x:Name='Preview' Text='{Binding Content}' TextWrapping='Wrap' TextTrimming='CharacterEllipsis' MaxHeight='44' LineHeight='22' Foreground='#283343'/>
-                  <TextBox x:Name='FullText' Text='{Binding Content, Mode=OneWay}' IsReadOnly='True' TextWrapping='Wrap' MaxHeight='220' VerticalScrollBarVisibility='Auto' BorderThickness='0' Padding='0' Background='Transparent' Foreground='#283343' Visibility='Collapsed'/></Grid>
-                  <TextBlock Text='{Binding CreatedUtc, Converter={StaticResource TextTime}}' FontSize='11' Foreground='#8390A1' Margin='0,5,0,0'/>
+                  <Grid><TextBlock x:Name='Preview' Text='{Binding Content}' TextWrapping='Wrap' TextTrimming='CharacterEllipsis' MaxHeight='44' LineHeight='22' Foreground='{DynamicResource Ui.TextPrimary}'/>
+                  <TextBox x:Name='FullText' Text='{Binding Content, Mode=OneWay}' IsReadOnly='True' TextWrapping='Wrap' MaxHeight='220' VerticalScrollBarVisibility='Auto' BorderThickness='0' Padding='0' Background='Transparent' Foreground='{DynamicResource Ui.TextPrimary}' Visibility='Collapsed'/></Grid>
+                  <TextBlock Text='{Binding CreatedUtc, Converter={StaticResource TextTime}}' FontSize='11' Foreground='{DynamicResource Ui.TextFaint}' Margin='0,5,0,0'/>
                 </StackPanel>
                 <StackPanel Grid.Column='1' Orientation='Horizontal' VerticalAlignment='Center'>
                   <Button Tag='copy' ToolTip='复制' AutomationProperties.Name='复制文字' Style='{StaticResource IconButton}' Margin='0,0,4,0'><Viewbox Width='16' Height='16'><Path Data='{StaticResource CopyIcon}' Stroke='{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}' StrokeThickness='1.65' StrokeStartLineCap='Round' StrokeEndLineCap='Round' StrokeLineJoin='Round'/></Viewbox></Button>

@@ -60,8 +60,8 @@ namespace ScreenLine
     {
         static readonly ControlTemplate choiceTemplate = (ControlTemplate)XamlReader.Parse(@"<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' TargetType='Button'>
           <Border x:Name='Surface' Background='Transparent' BorderBrush='Transparent' BorderThickness='1' CornerRadius='8'><ContentPresenter HorizontalAlignment='Stretch'/></Border>
-          <ControlTemplate.Triggers><Trigger Property='IsMouseOver' Value='True'><Setter TargetName='Surface' Property='Background' Value='#F7F9FC'/></Trigger>
-          <Trigger Property='IsKeyboardFocused' Value='True'><Setter TargetName='Surface' Property='BorderBrush' Value='#6E97CB'/></Trigger></ControlTemplate.Triggers></ControlTemplate>");
+          <ControlTemplate.Triggers><Trigger Property='IsMouseOver' Value='True'><Setter TargetName='Surface' Property='Background' Value='{DynamicResource Ui.SurfaceSubtle}'/></Trigger>
+          <Trigger Property='IsKeyboardFocused' Value='True'><Setter TargetName='Surface' Property='BorderBrush' Value='{DynamicResource Ui.Focus}'/></Trigger></ControlTemplate.Triggers></ControlTemplate>");
         readonly Gallery gallery;
         readonly Action<bool> setAutoHang;
         readonly Action<CaptureItem> hang;
@@ -69,11 +69,11 @@ namespace ScreenLine
         readonly HashSet<string> selected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         readonly UniformGrid thumbnails = new UniformGrid { Columns = 3 };
         readonly ScrollViewer scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
-        readonly TextBlock empty = new TextBlock { TextAlignment = TextAlignment.Center, Foreground = LightTheme.Brush("#65717F"), FontSize = 14, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
-        readonly TextBlock status = new TextBlock { FontSize = 14, Foreground = LightTheme.Brush("#283343"), VerticalAlignment = VerticalAlignment.Center };
+        readonly TextBlock empty = UiTheme.Paint(new TextBlock { TextAlignment = TextAlignment.Center, FontSize = 14, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap }, TextBlock.ForegroundProperty, "Ui.TextMuted");
+        readonly TextBlock status = UiTheme.Paint(new TextBlock { FontSize = 14, VerticalAlignment = VerticalAlignment.Center }, TextBlock.ForegroundProperty, "Ui.TextPrimary");
         readonly Image preview = new Image { Stretch = Stretch.Uniform, Margin = new Thickness(18, 10, 18, 12) };
-        readonly TextBlock previewHint = new TextBlock { Text = "选择图片，查看大图", FontSize = 14, Foreground = LightTheme.Brush("#65717F"), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-        readonly TextBlock metadata = new TextBlock { FontSize = 12, Foreground = LightTheme.Brush("#65717F"), Margin = new Thickness(16, 0, 16, 14) };
+        readonly TextBlock previewHint = UiTheme.Paint(new TextBlock { Text = "选择图片，查看大图", FontSize = 14, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }, TextBlock.ForegroundProperty, "Ui.TextMuted");
+        readonly TextBlock metadata = UiTheme.Paint(new TextBlock { FontSize = 12, Margin = new Thickness(16, 0, 16, 14) }, TextBlock.ForegroundProperty, "Ui.TextMuted");
         readonly Dictionary<string, Button> choices = new Dictionary<string, Button>(StringComparer.OrdinalIgnoreCase);
         internal readonly Button PendingTab, AllTab, HangButton, DeleteButton, SelectAllButton;
         internal readonly CheckBox AutoHang;
@@ -111,17 +111,17 @@ namespace ScreenLine
 
             var heading = new Grid { Margin = new Thickness(22, 0, 18, 0) };
             var title = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            title.Children.Add(new TextBlock { Text = "图片篮子", FontSize = 18, FontWeight = FontWeights.SemiBold, Foreground = LightTheme.Brush("#283343"), VerticalAlignment = VerticalAlignment.Center });
+            title.Children.Add(UiTheme.Paint(new TextBlock { Text = "图片篮子", FontSize = 18, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center }, TextBlock.ForegroundProperty, "Ui.TextPrimary"));
             heading.Children.Add(title);
             var tools = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
-            tools.Children.Add(new TextBlock { Text = "自动挂上新截图", FontSize = 12, Foreground = LightTheme.Brush("#65717F"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) });
+            tools.Children.Add(UiTheme.Paint(new TextBlock { Text = "自动挂上新截图", FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) }, TextBlock.ForegroundProperty, "Ui.TextMuted"));
             AutoHang = new CheckBox { VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Hand, ToolTip = "关闭后，截图仍收进图片篮子" };
             AutoHang.Template = (ControlTemplate)XamlReader.Parse(@"<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' TargetType='CheckBox'>
-              <Border x:Name='Track' Width='38' Height='22' CornerRadius='11' Background='#B8C0CC' BorderBrush='Transparent' BorderThickness='1'>
-                <Border x:Name='Knob' Width='16' Height='16' CornerRadius='8' Background='White' HorizontalAlignment='Left' Margin='2,0'/>
+              <Border x:Name='Track' Width='38' Height='22' CornerRadius='11' Background='{DynamicResource Ui.SwitchOff}' BorderBrush='Transparent' BorderThickness='1'>
+                <Border x:Name='Knob' Width='16' Height='16' CornerRadius='8' Background='{DynamicResource Ui.White}' HorizontalAlignment='Left' Margin='2,0'/>
               </Border><ControlTemplate.Triggers>
-                <Trigger Property='IsChecked' Value='True'><Setter TargetName='Track' Property='Background' Value='#2463AE'/><Setter TargetName='Knob' Property='HorizontalAlignment' Value='Right'/></Trigger>
-                <Trigger Property='IsKeyboardFocused' Value='True'><Setter TargetName='Track' Property='BorderBrush' Value='#283343'/></Trigger>
+                <Trigger Property='IsChecked' Value='True'><Setter TargetName='Track' Property='Background' Value='{DynamicResource Ui.Accent}'/><Setter TargetName='Knob' Property='HorizontalAlignment' Value='Right'/></Trigger>
+                <Trigger Property='IsKeyboardFocused' Value='True'><Setter TargetName='Track' Property='BorderBrush' Value='{DynamicResource Ui.Focus}'/></Trigger>
               </ControlTemplate.Triggers></ControlTemplate>");
             AutomationProperties.SetName(AutoHang, "自动挂上新截图");
             AutoHang.Checked += AutoChanged; AutoHang.Unchecked += AutoChanged;
@@ -130,7 +130,7 @@ namespace ScreenLine
             close.Width = close.Height = 28; close.MinWidth = 0; close.Padding = new Thickness(0); close.Margin = new Thickness(22, 0, 0, 0);
             AutomationProperties.SetName(close, "关闭图片篮子"); tools.Children.Add(close); heading.Children.Add(tools);
             heading.MouseLeftButtonDown += delegate(object sender, MouseButtonEventArgs e) { if (e.OriginalSource is TextBlock) DragMove(); };
-            body.Children.Add(new Border { BorderBrush = LightTheme.Brush("#E8EBEF"), BorderThickness = new Thickness(0, 0, 0, 1), Child = heading });
+            body.Children.Add(UiTheme.Paint(new Border { BorderThickness = new Thickness(0, 0, 0, 1), Child = heading }, Border.BorderBrushProperty, "Ui.Divider"));
 
             var tabs = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(22, 6, 0, 8) };
             PendingTab = LightTheme.Button("待挂", delegate { pendingOnly = true; Refresh(); });
@@ -143,7 +143,7 @@ namespace ScreenLine
             AutomationProperties.SetName(SelectAllButton, "全选");
             var tabRow = new Grid();
             tabRow.Children.Add(tabs); tabRow.Children.Add(SelectAllButton);
-            var tabBar = new Border { BorderBrush = LightTheme.Brush("#E8EBEF"), BorderThickness = new Thickness(0, 0, 0, 1), Child = tabRow };
+            var tabBar = UiTheme.Paint(new Border { BorderThickness = new Thickness(0, 0, 0, 1), Child = tabRow }, Border.BorderBrushProperty, "Ui.Divider");
             Grid.SetRow(tabBar, 1); body.Children.Add(tabBar);
 
             var content = new Grid();
@@ -155,14 +155,14 @@ namespace ScreenLine
             previewBody.RowDefinitions.Add(new RowDefinition { Height = new GridLength(28) });
             previewBody.RowDefinitions.Add(new RowDefinition());
             previewBody.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            previewBody.Children.Add(new TextBlock { Text = "预览", Margin = new Thickness(16, 10, 0, 0), FontSize = 12, Foreground = LightTheme.Brush("#65717F") });
+            previewBody.Children.Add(UiTheme.Paint(new TextBlock { Text = "预览", Margin = new Thickness(16, 10, 0, 0), FontSize = 12 }, TextBlock.ForegroundProperty, "Ui.TextMuted"));
             Grid.SetRow(preview, 1); previewBody.Children.Add(preview);
             Grid.SetRow(previewHint, 1); previewBody.Children.Add(previewHint);
             Grid.SetRow(metadata, 2); previewBody.Children.Add(metadata);
             previewBody.MouseLeftButtonDown += delegate(object sender, MouseButtonEventArgs e) { if (e.ClickCount == 2 && previewItem != null) act(ShotAction.Open, previewItem); };
             previewBody.ToolTip = "双击打开原图";
-            var previewPanel = new Border { Background = LightTheme.Brush("#F1F4F8"), CornerRadius = new CornerRadius(9), Margin = new Thickness(12, 10, 20, 12), Child = previewBody };
-            var right = new Border { BorderBrush = LightTheme.Brush("#E8EBEF"), BorderThickness = new Thickness(1, 0, 0, 0), Child = previewPanel };
+            var previewPanel = UiTheme.Paint(new Border { CornerRadius = new CornerRadius(9), Margin = new Thickness(12, 10, 20, 12), Child = previewBody }, Border.BackgroundProperty, "Ui.SurfaceMuted");
+            var right = UiTheme.Paint(new Border { BorderThickness = new Thickness(1, 0, 0, 0), Child = previewPanel }, Border.BorderBrushProperty, "Ui.Divider");
             Grid.SetColumn(right, 1); content.Children.Add(right);
             Grid.SetRow(content, 2); body.Children.Add(content);
 
@@ -171,14 +171,14 @@ namespace ScreenLine
             DeleteButton = LightTheme.Button("删除所选", DeleteSelected);
             DeleteButton.Width = 112; DeleteButton.Height = 38;
             DeleteButton.HorizontalAlignment = HorizontalAlignment.Right; DeleteButton.VerticalAlignment = VerticalAlignment.Center;
-            DeleteButton.Margin = new Thickness(0, 0, 156, 0); DeleteButton.Foreground = LightTheme.Brush("#B74E4A");
-            DeleteButton.Background = LightTheme.Brush("#FFF8F7"); DeleteButton.BorderBrush = LightTheme.Brush("#ECD6D2");
+            DeleteButton.Margin = new Thickness(0, 0, 156, 0); UiTheme.Paint(DeleteButton, Control.ForegroundProperty, "Ui.DangerStrong");
+            UiTheme.Paint(DeleteButton, Control.BackgroundProperty, "Ui.DangerSurface"); UiTheme.Paint(DeleteButton, Control.BorderBrushProperty, "Ui.DangerBorder");
             DeleteButton.ToolTip = "移到回收站，可恢复";
             AutomationProperties.SetName(DeleteButton, "删除所选图片"); footer.Children.Add(DeleteButton);
             HangButton = LightTheme.Button("挂上绳子", Mount, "primary"); HangButton.Width = 144; HangButton.Height = 38;
             HangButton.HorizontalAlignment = HorizontalAlignment.Right; HangButton.VerticalAlignment = VerticalAlignment.Center;
             AutomationProperties.SetName(HangButton, "挂上绳子"); footer.Children.Add(HangButton);
-            var bottom = new Border { BorderBrush = LightTheme.Brush("#E8EBEF"), BorderThickness = new Thickness(0, 1, 0, 0), Child = footer };
+            var bottom = UiTheme.Paint(new Border { BorderThickness = new Thickness(0, 1, 0, 0), Child = footer }, Border.BorderBrushProperty, "Ui.Divider");
             Grid.SetRow(bottom, 3); body.Children.Add(bottom);
             SourceInitialized += delegate
             {
@@ -233,21 +233,21 @@ namespace ScreenLine
                 HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(7),
                 BorderThickness = new Thickness(1) };
             image.Children.Add(mark);
-            var frame = new Border { Child = image, Background = LightTheme.Brush("#F1F4F8"), BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(8) };
+            var frame = UiTheme.Paint(new Border { Child = image, BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(8) }, Border.BackgroundProperty, "Ui.SurfaceMuted");
             stack.Children.Add(frame);
-            stack.Children.Add(new TextBlock { Text = TimeLabel(item.Written), FontSize = 11, Foreground = LightTheme.Brush("#65717F"), Margin = new Thickness(3, 7, 0, 0) });
+            stack.Children.Add(UiTheme.Paint(new TextBlock { Text = TimeLabel(item.Written), FontSize = 11, Margin = new Thickness(3, 7, 0, 0) }, TextBlock.ForegroundProperty, "Ui.TextMuted"));
             var button = new Button { Style = LightTheme.ButtonStyle, Tag = "quiet", VerticalAlignment = VerticalAlignment.Top };
             Action updateChoice = delegate
             {
                 bool chosen = selected.Contains(item.Path);
-                frame.BorderBrush = LightTheme.Brush(chosen ? "#2463AE" : "#E5EAF1");
-                mark.Background = LightTheme.Brush(chosen ? "#2463AE" : "#FFFFFF"); mark.BorderBrush = LightTheme.Brush(chosen ? "#2463AE" : "#9CAABD");
+                UiTheme.Paint(frame, Border.BorderBrushProperty, chosen ? "Ui.Accent" : "Ui.Border");
+                UiTheme.Paint(mark, Border.BackgroundProperty, chosen ? "Ui.Accent" : "Ui.Surface"); UiTheme.Paint(mark, Border.BorderBrushProperty, chosen ? "Ui.Accent" : "Ui.TextFaint");
                 if (mounted)
                 {
                     mark.Width = chosen ? 68 : 54;
-                    mark.Child = new TextBlock { Text = chosen ? "\u2713 已挂上" : "已挂上", FontSize = 10, Foreground = chosen ? Brushes.White : LightTheme.Brush("#65717F"), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                    mark.Child = UiTheme.Paint(new TextBlock { Text = chosen ? "\u2713 已挂上" : "已挂上", FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }, TextBlock.ForegroundProperty, chosen ? "Ui.White" : "Ui.TextMuted");
                 }
-                else mark.Child = chosen ? new TextBlock { Text = "\uE73E", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 12, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } : null;
+                else mark.Child = chosen ? UiTheme.Paint(new TextBlock { Text = "\uE73E", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }, TextBlock.ForegroundProperty, "Ui.White") : null;
                 AutomationProperties.SetItemStatus(button, chosen ? (mounted ? "已选择，已挂上" : "已选择") : mounted ? "已挂上" : "待挂");
             };
             button.Click += delegate

@@ -22,8 +22,8 @@ namespace ScreenLine
         readonly Func<string, Task> saved;
         readonly Action copied;
         readonly JavaScriptSerializer json = new JavaScriptSerializer { MaxJsonLength = 96 * 1024 * 1024 };
-        readonly TextBlock failureTitle = new TextBlock { Text = "正在打开图片…", Foreground = LightTheme.Brush("#283343"), FontSize = 16, FontWeight = FontWeights.SemiBold };
-        readonly TextBlock failure = new TextBlock { Foreground = LightTheme.Brush("#65717F"), FontSize = 13, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 0), LineHeight = 21 };
+        readonly TextBlock failureTitle = UiTheme.Paint(new TextBlock { Text = "正在打开图片…", FontSize = 16, FontWeight = FontWeights.SemiBold }, TextBlock.ForegroundProperty, "Ui.TextPrimary");
+        readonly TextBlock failure = UiTheme.Paint(new TextBlock { FontSize = 13, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 0), LineHeight = 21 }, TextBlock.ForegroundProperty, "Ui.TextMuted");
         readonly Border failurePanel;
         readonly Button failureClose;
         readonly TaskCompletionSource<bool> initialized = new TaskCompletionSource<bool>();
@@ -42,7 +42,7 @@ namespace ScreenLine
             this.saved = saved;
             this.copied = copied;
             Title = "图片编辑 · " + Path.GetFileName(path);
-            Background = new SolidColorBrush(Color.FromRgb(244, 246, 249));
+            UiTheme.Paint(this, Window.BackgroundProperty, "Ui.EditorBackground");
             Width = Math.Min(1000, SystemParameters.WorkArea.Width - 48);
             Height = Math.Min(700, SystemParameters.WorkArea.Height - 48);
             MinWidth = Math.Min(720, Width);
@@ -63,16 +63,28 @@ namespace ScreenLine
             failurePanel.VerticalAlignment = VerticalAlignment.Center;
             panel.Children.Add(failurePanel);
             Content = panel;
+            SourceInitialized += delegate { WindowsNative.UseDarkTitleBar(new WindowInteropHelper(this).Handle, UiTheme.Dark); };
+            UiTheme.Changed += ThemeChanged;
             Loaded += Initialize;
             Closing += ClosingEditor;
             Deactivated += delegate { Topmost = false; };
             Closed += delegate
             {
                 closed = true;
+                UiTheme.Changed -= ThemeChanged;
                 initialized.TrySetCanceled();
                 if (saveForClose != null) saveForClose.TrySetResult(false);
                 Browser.Dispose();
             };
+        }
+
+        void ThemeChanged()
+        {
+            if (closed) return;
+            IntPtr handle = new WindowInteropHelper(this).Handle;
+            if (handle != IntPtr.Zero) WindowsNative.UseDarkTitleBar(handle, UiTheme.Dark);
+            if (initialized.Task.Status == TaskStatus.RanToCompletion)
+                Browser.ExecuteScriptAsync("window.applyEditorTheme(" + (UiTheme.Dark ? "true" : "false") + ");");
         }
 
         public void Present()
@@ -95,6 +107,8 @@ namespace ScreenLine
                 if (closed) return;
                 await Browser.EnsureCoreWebView2Async(environment);
                 if (closed) return;
+                Color editorBackground = UiTheme.MediaColor(UiTheme.Dark ? "Ui.EditorCanvas" : "Ui.EditorBackground");
+                Browser.DefaultBackgroundColor = System.Drawing.Color.FromArgb(editorBackground.R, editorBackground.G, editorBackground.B);
                 var core = Browser.CoreWebView2;
                 core.Settings.AreDefaultContextMenusEnabled = false;
                 core.Settings.IsStatusBarEnabled = false;
@@ -114,7 +128,7 @@ namespace ScreenLine
                 {
                     if (closed) return;
                     if (!e.IsSuccess) { ShowFailure(new IOException("图片编辑器页面加载失败。")); return; }
-                    await Browser.ExecuteScriptAsync("window.startEditor(" + json.Serialize(new { name = Path.GetFileName(ImagePath), source = "data:image/png;base64," + Convert.ToBase64String(png) }) + ");");
+                    await Browser.ExecuteScriptAsync("window.startEditor(" + json.Serialize(new { name = Path.GetFileName(ImagePath), source = "data:image/png;base64," + Convert.ToBase64String(png), dark = UiTheme.Dark }) + ");");
                 };
                 failurePanel.Visibility = Visibility.Collapsed;
                 core.Navigate(Origin + "index.html");

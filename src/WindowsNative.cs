@@ -44,6 +44,14 @@ namespace ScreenLine
         [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
         [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr window, IntPtr process);
         [DllImport("user32.dll")] static extern bool AttachThreadInput(uint thread, uint target, bool attach);
+        [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
+
+        public static void UseDarkTitleBar(IntPtr window, bool dark)
+        {
+            int value = dark ? 1 : 0;
+            if (DwmSetWindowAttribute(window, 20, ref value, sizeof(int)) != 0)
+                DwmSetWindowAttribute(window, 19, ref value, sizeof(int));
+        }
 
         public static void ActivateEditor(IntPtr window)
         {

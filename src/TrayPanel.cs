@@ -20,7 +20,7 @@ namespace ScreenLine
         static readonly ResourceDictionary styles = (ResourceDictionary)XamlReader.Parse(@"
 <ResourceDictionary xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'>
   <Style x:Key='Action' TargetType='Button'>
-    <Setter Property='Background' Value='Transparent'/><Setter Property='Foreground' Value='#283343'/>
+    <Setter Property='Background' Value='Transparent'/><Setter Property='Foreground' Value='{DynamicResource Ui.TextPrimary}'/>
     <Setter Property='Height' Value='44'/><Setter Property='Padding' Value='12,0'/>
     <Setter Property='HorizontalContentAlignment' Value='Stretch'/><Setter Property='Cursor' Value='Hand'/>
     <Setter Property='FocusVisualStyle' Value='{x:Null}'/>
@@ -29,47 +29,53 @@ namespace ScreenLine
         <ContentPresenter Margin='{TemplateBinding Padding}' VerticalAlignment='Center'/>
       </Border>
       <ControlTemplate.Triggers>
-        <Trigger Property='Tag' Value='primary'><Setter Property='Background' Value='#EDF4FF'/><Setter Property='Foreground' Value='#2463AE'/></Trigger>
-        <Trigger Property='IsMouseOver' Value='True'><Setter TargetName='Surface' Property='Background' Value='#F0F3F7'/></Trigger>
-        <MultiTrigger><MultiTrigger.Conditions><Condition Property='Tag' Value='primary'/><Condition Property='IsMouseOver' Value='True'/></MultiTrigger.Conditions><Setter TargetName='Surface' Property='Background' Value='#E0ECFF'/></MultiTrigger>
-        <Trigger Property='IsPressed' Value='True'><Setter TargetName='Surface' Property='Background' Value='#E5ECF5'/></Trigger>
-        <Trigger Property='IsKeyboardFocused' Value='True'><Setter TargetName='Surface' Property='BorderBrush' Value='#6E97CB'/></Trigger>
+        <Trigger Property='Tag' Value='primary'><Setter Property='Background' Value='{DynamicResource Ui.AccentSoft}'/><Setter Property='Foreground' Value='{DynamicResource Ui.Accent}'/></Trigger>
+        <Trigger Property='IsMouseOver' Value='True'><Setter TargetName='Surface' Property='Background' Value='{DynamicResource Ui.Hover}'/></Trigger>
+        <MultiTrigger><MultiTrigger.Conditions><Condition Property='Tag' Value='primary'/><Condition Property='IsMouseOver' Value='True'/></MultiTrigger.Conditions><Setter TargetName='Surface' Property='Background' Value='{DynamicResource Ui.AccentSoftHover}'/></MultiTrigger>
+        <Trigger Property='IsPressed' Value='True'><Setter TargetName='Surface' Property='Background' Value='{DynamicResource Ui.Pressed}'/></Trigger>
+        <Trigger Property='IsKeyboardFocused' Value='True'><Setter TargetName='Surface' Property='BorderBrush' Value='{DynamicResource Ui.Focus}'/></Trigger>
       </ControlTemplate.Triggers>
     </ControlTemplate></Setter.Value></Setter>
   </Style>
   <Style x:Key='Toggle' TargetType='CheckBox'>
-    <Setter Property='Foreground' Value='#283343'/><Setter Property='Height' Value='44'/>
+    <Setter Property='Foreground' Value='{DynamicResource Ui.TextPrimary}'/><Setter Property='Height' Value='44'/>
     <Setter Property='Cursor' Value='Hand'/><Setter Property='FocusVisualStyle' Value='{x:Null}'/>
     <Setter Property='Template'><Setter.Value><ControlTemplate TargetType='CheckBox'>
       <Border x:Name='Surface' Background='Transparent' CornerRadius='8' Padding='12,0' BorderBrush='Transparent' BorderThickness='1'>
         <Grid>
           <Grid.ColumnDefinitions><ColumnDefinition Width='*'/><ColumnDefinition Width='36'/></Grid.ColumnDefinitions>
           <ContentPresenter VerticalAlignment='Center'/>
-          <Border x:Name='Track' Grid.Column='1' Width='36' Height='21' Background='#B8C2D0' CornerRadius='11' VerticalAlignment='Center'>
-            <Ellipse x:Name='Thumb' Width='17' Height='17' Fill='White' HorizontalAlignment='Left' Margin='2,0'/>
+          <Border x:Name='Track' Grid.Column='1' Width='36' Height='21' Background='{DynamicResource Ui.SwitchOff}' CornerRadius='11' VerticalAlignment='Center'>
+            <Ellipse x:Name='Thumb' Width='17' Height='17' Fill='{DynamicResource Ui.White}' HorizontalAlignment='Left' Margin='2,0'/>
           </Border>
         </Grid>
       </Border>
       <ControlTemplate.Triggers>
-        <Trigger Property='IsChecked' Value='True'><Setter TargetName='Track' Property='Background' Value='#2463AE'/><Setter TargetName='Thumb' Property='HorizontalAlignment' Value='Right'/></Trigger>
-        <Trigger Property='IsMouseOver' Value='True'><Setter TargetName='Surface' Property='Background' Value='#F0F3F7'/></Trigger>
-        <Trigger Property='IsKeyboardFocused' Value='True'><Setter TargetName='Surface' Property='BorderBrush' Value='#6E97CB'/></Trigger>
+        <Trigger Property='IsChecked' Value='True'><Setter TargetName='Track' Property='Background' Value='{DynamicResource Ui.Accent}'/><Setter TargetName='Thumb' Property='HorizontalAlignment' Value='Right'/></Trigger>
+        <Trigger Property='IsMouseOver' Value='True'><Setter TargetName='Surface' Property='Background' Value='{DynamicResource Ui.Hover}'/></Trigger>
+        <Trigger Property='IsKeyboardFocused' Value='True'><Setter TargetName='Surface' Property='BorderBrush' Value='{DynamicResource Ui.Focus}'/></Trigger>
       </ControlTemplate.Triggers>
     </ControlTemplate></Setter.Value></Setter>
   </Style>
+  <ControlTemplate x:Key='Menu' TargetType='ContextMenu'>
+    <Border Margin='16' CornerRadius='14' Background='{DynamicResource Ui.SurfaceRaised}' BorderBrush='{DynamicResource Ui.Border}' BorderThickness='1'>
+      <Border.Effect><DropShadowEffect Color='#26394C' BlurRadius='22' ShadowDepth='6' Opacity='0.16'/></Border.Effect>
+      <ContentPresenter Content='{Binding Items[0], RelativeSource={RelativeSource TemplatedParent}}'/>
+    </Border>
+  </ControlTemplate>
 </ResourceDictionary>");
 
         internal readonly Button VisibilityButton, BasketButton, TextButton, AppearanceButton, ExitButton, MoreButton, ScreenButton;
         internal readonly CheckBox Pictures, Text, AutoHang;
         internal readonly LightMenu MoreMenu = new LightMenu("更多操作", "");
         internal readonly LightMenu ScreenMenu = new LightMenu("显示屏幕", "") { Width = 320 };
-        internal readonly TextBlock ScreenMode = new TextBlock { FontSize = 11, Foreground = LightTheme.Brush("#65717F"), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 22, 0) };
-        internal readonly TextBlock Shortcut = new TextBlock { FontSize = 10, Foreground = LightTheme.Brush("#65717F"), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
+        internal readonly TextBlock ScreenMode = UiTheme.Paint(new TextBlock { FontSize = 11, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 22, 0) }, TextBlock.ForegroundProperty, "Ui.TextMuted");
+        internal readonly TextBlock Shortcut = UiTheme.Paint(new TextBlock { FontSize = 10, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right }, TextBlock.ForegroundProperty, "Ui.TextMuted");
 
         internal TrayPanel()
         {
             Width = 360; FontFamily = new FontFamily("Segoe UI"); FontSize = 13;
-            Foreground = LightTheme.Brush("#283343"); HasDropShadow = false; SnapsToDevicePixels = true;
+            UiTheme.Paint(this, Control.ForegroundProperty, "Ui.TextPrimary"); HasDropShadow = false; SnapsToDevicePixels = true;
             TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
             var panel = new StackPanel { Margin = new Thickness(8) };
             KeyboardNavigation.SetTabNavigation(panel, KeyboardNavigationMode.Cycle);
@@ -81,7 +87,7 @@ namespace ScreenLine
                 heading.Children.Add(new Image { Source = logo, Width = 28, Height = 28, HorizontalAlignment = HorizontalAlignment.Left });
             }
             heading.Children.Add(new TextBlock { Text = "图绳", FontSize = 16, FontWeight = FontWeights.SemiBold, Margin = new Thickness(39, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
-            heading.Children.Add(new TextBlock { Text = "v" + AppUpdates.CurrentVersion, FontSize = 11, Foreground = LightTheme.Brush("#65717F"), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center });
+            heading.Children.Add(UiTheme.Paint(new TextBlock { Text = "v" + AppUpdates.CurrentVersion, FontSize = 11, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center }, TextBlock.ForegroundProperty, "Ui.TextMuted"));
             panel.Children.Add(heading);
 
             VisibilityButton = Action("显示 / 收起", "show"); VisibilityButton.Tag = "primary";
@@ -93,7 +99,7 @@ namespace ScreenLine
             BasketButton = Action("图片篮子", "folder"); TextButton = Action("文字信封", "envelope");
             var entries = Pair(BasketButton, TextButton); entries.Margin = new Thickness(0, 5, 0, 2); panel.Children.Add(entries);
             panel.Children.Add(Divider());
-            panel.Children.Add(new TextBlock { Text = "剪贴板收集", FontSize = 11, Foreground = LightTheme.Brush("#65717F"), Margin = new Thickness(12, 5, 0, 3) });
+            panel.Children.Add(UiTheme.Paint(new TextBlock { Text = "剪贴板收集", FontSize = 11, Margin = new Thickness(12, 5, 0, 3) }, TextBlock.ForegroundProperty, "Ui.TextMuted"));
             Pictures = Toggle("图片", "picture", "收集剪贴板图片"); Text = Toggle("文字", "text", "收集剪贴板文字");
             panel.Children.Add(Pair(Pictures, Text));
             AutoHang = Toggle("新截图自动挂上", "show", "新截图自动挂上"); panel.Children.Add(AutoHang);
@@ -106,17 +112,8 @@ namespace ScreenLine
             ExitButton.HorizontalAlignment = HorizontalAlignment.Right; ExitButton.Width = 84;
             panel.Children.Add(Pair(AppearanceButton, ExitButton, false));
 
-            var surface = new FrameworkElementFactory(typeof(Border));
-            surface.SetValue(Border.MarginProperty, new Thickness(16));
-            surface.SetValue(Border.CornerRadiusProperty, new CornerRadius(14));
-            surface.SetValue(Border.BackgroundProperty, Brushes.White);
-            surface.SetValue(Border.BorderBrushProperty, LightTheme.Brush("#E0E4EA"));
-            surface.SetValue(Border.BorderThicknessProperty, new Thickness(1));
-            surface.SetValue(Border.EffectProperty, new System.Windows.Media.Effects.DropShadowEffect { Color = Color.FromRgb(38, 57, 76), BlurRadius = 22, ShadowDepth = 6, Opacity = .16 });
-            var content = new FrameworkElementFactory(typeof(ContentPresenter));
             Items.Add(panel);
-            content.SetBinding(ContentPresenter.ContentProperty, new Binding("Items[0]") { RelativeSource = RelativeSource.TemplatedParent }); surface.AppendChild(content);
-            Template = new ControlTemplate(typeof(ContextMenu)) { VisualTree = surface };
+            Template = (ControlTemplate)styles["Menu"];
             MoreButton.Click += delegate
             {
                 ScreenMenu.IsOpen = false;
@@ -230,10 +227,10 @@ namespace ScreenLine
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition()); grid.ColumnDefinitions.Add(new ColumnDefinition());
             grid.Children.Add(left); Grid.SetColumn(right, 1); grid.Children.Add(right);
-            if (divider) grid.Children.Add(new Border { Width = 1, Height = 20, Background = LightTheme.Brush("#E0E4EA"), HorizontalAlignment = HorizontalAlignment.Right, IsHitTestVisible = false });
+            if (divider) grid.Children.Add(UiTheme.Paint(new Border { Width = 1, Height = 20, HorizontalAlignment = HorizontalAlignment.Right, IsHitTestVisible = false }, Border.BackgroundProperty, "Ui.Divider"));
             return grid;
         }
 
-        static Border Divider() { return new Border { Height = 1, Background = LightTheme.Brush("#E8EBEF"), Margin = new Thickness(4, 5, 4, 5) }; }
+        static Border Divider() { return UiTheme.Paint(new Border { Height = 1, Margin = new Thickness(4, 5, 4, 5) }, Border.BackgroundProperty, "Ui.Divider"); }
     }
 }

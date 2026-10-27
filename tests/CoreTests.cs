@@ -195,6 +195,16 @@ namespace ScreenLine.Tests
                 File.WriteAllText(Path.Combine(store.Root, "state.json"), "{\"Images\":[\"旧截图.png\"]}");
                 Check(new StateStore(store.Root).State.AutoHang);
             });
+            Run("深色模式默认关闭并可保存切换", delegate
+            {
+                var store = new StateStore(Path.Combine(root, "dark-mode-profile"));
+                Check(!store.State.DarkMode);
+                store.State.DarkMode = true;
+                store.Save();
+                Check(new StateStore(store.Root).State.DarkMode);
+                File.WriteAllText(Path.Combine(store.Root, "state.json"), "{\"Images\":[\"旧截图.png\"]}");
+                Check(!new StateStore(store.Root).State.DarkMode);
+            });
             Run("设置与中文路径可持久化并原子替换", delegate
             {
                 string profile = Path.Combine(root, "state-profile");
