@@ -35,7 +35,7 @@ Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging\Install.cmd'),(Join-Pa
 $releasePath = Join-Path $projectRoot 'releases'
 New-Item -ItemType Directory -Path $releasePath -Force | Out-Null
 $version = [Diagnostics.FileVersionInfo]::GetVersionInfo([IO.Path]::GetFullPath($ExecutablePath)).ProductVersion
-if ($version -notmatch '^\d+\.\d+\.\d+$') { throw '程序版本号无效' }
+if ($version -notmatch '^\d+\.\d+\.\d+-fork$') { throw '程序版本号无效' }
 $archivePath = Join-Path $releasePath ('PicRope-' + $version + '-windows-x64.zip')
 Compress-Archive -LiteralPath $appPath,(Join-Path $stagePath 'Install.cmd'),(Join-Path $stagePath 'install.ps1') -DestinationPath $archivePath -Force
 $checksum = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + [IO.Path]::GetFileName($archivePath)

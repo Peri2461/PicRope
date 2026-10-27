@@ -21,8 +21,8 @@ namespace ScreenLine
 
     internal sealed class AppUpdates : IDisposable
     {
-        public const string Repository = "https://github.com/Renly1994/PicRope";
-        public const string Endpoint = "https://api.github.com/repos/Renly1994/PicRope/releases/latest";
+        public const string Repository = "https://github.com/Peri2461/PicRope";
+        public const string Endpoint = "https://api.github.com/repos/Peri2461/PicRope/releases/latest";
         public static readonly string CurrentVersion = Assembly.GetExecutingAssembly().GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false)
             .Cast<AssemblyInformationalVersionAttribute>().Single().InformationalVersion;
         internal static readonly string Cache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PicRope", "Updates");
@@ -56,9 +56,13 @@ namespace ScreenLine
             var release = new JavaScriptSerializer().Deserialize<ReleaseData>(json);
             if (release == null) throw new InvalidDataException("更新信息不完整。");
             if (release.draft || release.prerelease) return null;
-            string version = (release.tag_name ?? "").TrimStart('v', 'V');
-            if (!Regex.IsMatch(version, @"^\d+\.\d+\.\d+$")) throw new InvalidDataException("更新版本号无效。");
-            if (new Version(version) <= new Version(current)) return null;
+            var tag = Regex.Match(release.tag_name ?? "", @"^fork/v(\d+\.\d+\.\d+)$");
+            if (!tag.Success) throw new InvalidDataException("更新版本号无效。");
+            string core = tag.Groups[1].Value;
+            string version = core + "-fork";
+            var currentCore = Regex.Match(current ?? "", @"^(\d+\.\d+\.\d+)(?:-fork)?$");
+            if (!currentCore.Success) throw new InvalidDataException("当前版本号无效。");
+            if (new Version(core) <= new Version(currentCore.Groups[1].Value)) return null;
             string file = "PicRope-" + version + "-windows-x64.zip";
             var asset = (release.assets ?? new AssetData[0]).SingleOrDefault(item => item.name == file);
             if (asset == null) throw new InvalidDataException("新版本暂未提供 Windows 安装包，请稍后重试。");

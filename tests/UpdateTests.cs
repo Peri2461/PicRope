@@ -52,17 +52,17 @@ namespace ScreenLine.Tests
             {
                 var parameters = new CompilerParameters { GenerateExecutable = true, OutputAssembly = fixture, CompilerOptions = "/target:winexe" };
                 var result = compiler.CompileAssemblyFromSource(parameters,
-                    "[assembly:System.Reflection.AssemblyInformationalVersion(\"1.2.0\")] class Fixture { static void Main() { System.IO.File.WriteAllText(System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, \"started.txt\"), \"ok\"); } }");
+                    "[assembly:System.Reflection.AssemblyInformationalVersion(\"9.9.9-fork\")] class Fixture { static void Main() { System.IO.File.WriteAllText(System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, \"started.txt\"), \"ok\"); } }");
                 if (result.Errors.HasErrors) throw new Exception(result.Errors[0].ToString());
             }
             package = MakePackage(fixture, null);
-            data = new AppUpdates.ReleaseData { tag_name = "v1.2.0", body = "改进图片篮子\n修复截图选择问题", assets = new[] {
-                new AppUpdates.AssetData { name = "PicRope-1.2.0-source.zip" },
-                new AppUpdates.AssetData { name = "PicRope-1.2.0-windows-x64.zip", size = package.Length,
-                    browser_download_url = AppUpdates.Repository + "/releases/download/v1.2.0/PicRope-1.2.0-windows-x64.zip", digest = Digest(package) }
+            data = new AppUpdates.ReleaseData { tag_name = "fork/v9.9.9", body = "改进图片篮子\n修复截图选择问题", assets = new[] {
+                new AppUpdates.AssetData { name = "PicRope-9.9.9-fork-source.zip" },
+                new AppUpdates.AssetData { name = "PicRope-9.9.9-fork-windows-x64.zip", size = package.Length,
+                    browser_download_url = AppUpdates.Repository + "/releases/download/fork/v9.9.9/PicRope-9.9.9-fork-windows-x64.zip", digest = Digest(package) }
             } };
-            Check(Parse().Version == "1.2.0" && Parse().DownloadUrl.EndsWith("windows-x64.zip"), "只选择较新的 Windows x64 安装包，不误取源码包");
-            Check(AppUpdates.Parse(json.Serialize(data), "1.2.0") == null && AppUpdates.Parse(json.Serialize(data), "1.3.0") == null, "同版与旧版不会提示升级或降级");
+            Check(Parse().Version == "9.9.9-fork" && Parse().DownloadUrl.EndsWith("windows-x64.zip"), "只选择较新的 Windows x64 安装包，不误取源码包");
+            Check(AppUpdates.Parse(json.Serialize(data), "9.9.9-fork") == null && AppUpdates.Parse(json.Serialize(data), "9.9.10-fork") == null, "同版与旧版不会提示升级或降级");
             data.prerelease = true; Check(Parse() == null, "预发布版本不参与自动更新"); data.prerelease = false;
             data.draft = true; Check(Parse() == null, "草稿版本不参与更新"); data.draft = false;
             var asset = data.assets[1]; string original = asset.digest; asset.digest = null;
@@ -70,11 +70,12 @@ namespace ScreenLine.Tests
             string url = asset.browser_download_url; asset.browser_download_url = "https://example.com/update.zip";
             Reject(delegate { Parse(); }, "拒绝仓库以外的安装包地址"); asset.browser_download_url = url;
             string tag = data.tag_name; data.tag_name = "invalid"; Reject(delegate { Parse(); }, "拒绝无效版本号"); data.tag_name = tag;
+            data.tag_name = "v9.9.9"; Reject(delegate { Parse(); }, "拒绝非 fork 版本号"); data.tag_name = tag;
             var release = Parse();
             var handler = new Handler(package, json.Serialize(data));
             using (var updates = new AppUpdates(handler))
             {
-                Check((await updates.CheckAsync(CancellationToken.None)).Version == "1.2.0", "检查更新能读取服务返回的新版本");
+                Check((await updates.CheckAsync(CancellationToken.None)).Version == "9.9.9-fork", "检查更新能读取服务返回的新版本");
                 string work = await updates.DownloadAsync(release, new Progress<int>(), CancellationToken.None);
                 Check(File.Exists(Path.Combine(work, "contents", "app", "PicRope.exe")), "下载、大小校验、SHA256 校验及解压完整通过");
                 string target = Path.Combine(root, "installed"); Directory.CreateDirectory(Path.Combine(target, "data", "Captures"));
@@ -108,11 +109,11 @@ namespace ScreenLine.Tests
             }
             string archive = Path.Combine(root, "invalid.zip");
             File.WriteAllBytes(archive, MakePackage(fixture, "../escape.txt"));
-            Reject(delegate { AppUpdates.Extract(archive, Path.Combine(root, "extract"), "1.2.0"); }, "拒绝 ZIP 路径穿越");
+            Reject(delegate { AppUpdates.Extract(archive, Path.Combine(root, "extract"), "9.9.9-fork"); }, "拒绝 ZIP 路径穿越");
             File.WriteAllBytes(archive, MakePackage(fixture, "app/data/state.json"));
-            Reject(delegate { AppUpdates.Extract(archive, Path.Combine(root, "extract-data"), "1.2.0"); }, "拒绝包含用户数据目录的更新包");
+            Reject(delegate { AppUpdates.Extract(archive, Path.Combine(root, "extract-data"), "9.9.9-fork"); }, "拒绝包含用户数据目录的更新包");
             File.WriteAllBytes(archive, package);
-            Reject(delegate { AppUpdates.Extract(archive, Path.Combine(root, "wrong-version"), "9.0.0"); }, "安装前校验程序实际版本与发布版本一致");
+            Reject(delegate { AppUpdates.Extract(archive, Path.Combine(root, "wrong-version"), "9.0.0-fork"); }, "安装前校验程序实际版本与发布版本一致");
             using (var canceled = new CancellationTokenSource())
             using (var updates = new AppUpdates(new Handler(package, json.Serialize(data))))
             {
@@ -123,7 +124,7 @@ namespace ScreenLine.Tests
             if (live) using (var updates = new AppUpdates()) { await updates.CheckAsync(CancellationToken.None); Check(true, "真实 GitHub Release 接口连接与版本检查通过"); }
         }
 
-        static UpdateRelease Parse() { return AppUpdates.Parse(json.Serialize(data), "1.1.0"); }
+        static UpdateRelease Parse() { return AppUpdates.Parse(json.Serialize(data), "1.1.0-fork"); }
         static string Digest(byte[] bytes) { using (var hash = SHA256.Create()) return "sha256:" + BitConverter.ToString(hash.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant(); }
         static byte[] MakePackage(string fixture, string extra)
         {

@@ -9,9 +9,9 @@
 <p align="center">Windows 10/11 · 免费开源 · 中文界面 · 图片本地处理</p>
 
 <p align="center">
-  <a href="https://github.com/Renly1994/PicRope/releases/latest">下载 Windows 版</a>
+  <a href="https://github.com/Peri2461/PicRope/releases/latest">下载 Windows 版</a>
   · <a href="#开始使用">开始使用</a>
-  · <a href="https://github.com/Renly1994/PicRope/issues">反馈问题</a>
+  · <a href="https://github.com/Peri2461/PicRope/issues">反馈问题</a>
 </p>
 
 ![图绳产品插画：木夹把图片挂在绳上，参考图用图钉固定](docs/assets/picrope-banner.png)
@@ -35,7 +35,7 @@
 
 ## 开始使用
 
-1. [下载最新版安装包](https://github.com/Renly1994/PicRope/releases/latest)，完整解压后双击 `Install.cmd`。
+1. [下载最新版安装包](https://github.com/Peri2461/PicRope/releases/latest)，完整解压后双击 `Install.cmd`。
 2. 启动后，用 `Win+PrtScn` 截图。保存到 Windows 截图文件夹的新图片会自动挂上。
 3. 如果常用 `Win+Shift+S`、`PrtScn` 或微信 `Alt+A`，右键托盘图标，在「剪贴板收集」中开启「图片」。这个选项默认关闭。
 
@@ -61,9 +61,9 @@
 
 右键「取下放篮子」或「批量取下」会从绳子取下图片，保留在本地和图片篮子中，需要时可以再次挂上。批量取下作用于绳子上可见的图片，已固定到桌面的图片不受影响；绳上只有一张图片时该入口整体置灰。左上角 ×、右键「移到回收站」和篮子里的「删除所选」会删除图片文件，并同步移除挂图和篮子记录，可从系统回收站恢复。拖拽移动完成后，图片会自动取下。
 
-1.1.0 起支持应用内更新。启动后和运行期间会自动检查新版本，通过系统通知提醒；也可从托盘手动检查。下载经过大小、SHA256 和程序版本校验后安装并重启，保留图片、设置和开机启动。下载失败可重试，取消下载不影响当前程序，安装替换失败会恢复旧文件。1.0.0 用户需要先手动安装一次支持更新的版本。
+1.1.0 起支持应用内更新。启动后和运行期间会自动检查新版本，通过系统通知提醒；也可从托盘手动检查。下载经过大小、SHA256 和程序版本校验后安装并重启，保留图片、设置和开机启动。下载失败可重试，取消下载不影响当前程序，安装替换失败会恢复旧文件。本仓库发布的版本以 `-fork` 结尾，更新源指向本仓库的 Releases；1.0.0 用户需要先手动安装一次支持更新的版本。
 
-更新源为本仓库的 GitHub Releases 正式版。发布时运行 `./build.ps1 -Package`，将生成的 `PicRope-版本号-windows-x64.zip` 上传至对应的 `v版本号` 正式 Release，并设为最新版本。发布草稿、预发布版及源码包不会触发自动升级。
+更新源为本仓库（`Peri2461/PicRope`）的 GitHub Releases 正式版。发布时运行 `./build.ps1 -Package`，将生成的 `PicRope-版本号-fork-windows-x64.zip` 上传至对应的 `fork/v版本号` 正式 Release，并设为最新版本。发布草稿、预发布版及源码包不会触发自动升级。
 
 ## 关于你的图片
 
