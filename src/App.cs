@@ -19,9 +19,9 @@ using Forms = System.Windows.Forms;
 [assembly: AssemblyTitle("PicRope · 图绳")]
 [assembly: AssemblyProduct("PicRope")]
 [assembly: AssemblyDescription("图绳：把截图挂在屏幕上沿，随手复制、拖拽和保存。")]
-[assembly: AssemblyVersion("0.1.0.0")]
-[assembly: AssemblyFileVersion("0.1.0.0")]
-[assembly: AssemblyInformationalVersion("0.1.0-fork")]
+[assembly: AssemblyVersion("0.2.0.0")]
+[assembly: AssemblyFileVersion("0.2.0.0")]
+[assembly: AssemblyInformationalVersion("0.2.0-fork")]
 
 namespace ScreenLine
 {
