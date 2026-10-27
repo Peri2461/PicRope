@@ -38,11 +38,11 @@ namespace ScreenLine
             UseLayoutRounding = true;
             TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
             RenderOptions.SetBitmapScalingMode(picture, BitmapScalingMode.HighQuality);
-            var shell = new Border {
+            var shell = UiTheme.Paint(new Border {
                 CornerRadius = new CornerRadius(12), BorderThickness = new Thickness(1), Padding = new Thickness(6),
-                Margin = new Thickness(12), Child = picture,
-                Background = Brushes.White, BorderBrush = LightTheme.Brush("#DCE2EA")
-            };
+                Margin = new Thickness(12), Child = picture
+            }, Border.BackgroundProperty, "Ui.Surface");
+            UiTheme.Paint(shell, Border.BorderBrushProperty, "Ui.Border");
             shell.Effect = new DropShadowEffect { Color = Color.FromRgb(20, 26, 22), BlurRadius = 26, ShadowDepth = 6, Opacity = 0.24 };
             Content = shell;
             System.Windows.Automation.AutomationProperties.SetAutomationId(this, "ImagePreview");

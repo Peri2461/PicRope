@@ -59,8 +59,8 @@ namespace ScreenLine
             IsHitTestVisible = false;
             Frame.Margin = new Thickness(12, 24, 12, 12);
             Frame.Padding = new Thickness(6);
-            Frame.Background = Brushes.White;
-            Frame.BorderBrush = LightTheme.Brush("#DCE1E9");
+            UiTheme.Paint(Frame, Border.BackgroundProperty, "Ui.Surface");
+            UiTheme.Paint(Frame, Border.BorderBrushProperty, "Ui.Border");
             Frame.BorderThickness = new Thickness(1);
             Frame.CornerRadius = new CornerRadius(12);
             Frame.Effect = new DropShadowEffect { BlurRadius = 16, ShadowDepth = 4, Opacity = 0.2 };

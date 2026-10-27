@@ -27,18 +27,19 @@ namespace ScreenLine
             FontFamily = new FontFamily("Segoe UI");
             var content = new StackPanel();
             var heading = new Grid { Margin = new Thickness(0, 0, 0, 10) };
-            heading.Children.Add(new TextBlock { Text = "保存这张图片的更改？", FontSize = 18, FontWeight = FontWeights.SemiBold, Foreground = LightTheme.Brush("#283343"), VerticalAlignment = VerticalAlignment.Center });
+            heading.Children.Add(UiTheme.Paint(new TextBlock { Text = "保存这张图片的更改？", FontSize = 18, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center }, TextBlock.ForegroundProperty, "Ui.TextPrimary"));
             var close = LightTheme.Button("×", () => Choose(MessageBoxResult.Cancel), "quiet");
             close.Width = close.Height = 28; close.MinWidth = 0; close.Padding = new Thickness(0); close.FontSize = 20;
             close.HorizontalAlignment = HorizontalAlignment.Right;
             AutomationProperties.SetName(close, "关闭");
             heading.Children.Add(close);
             content.Children.Add(heading);
-            content.Children.Add(new TextBlock { Text = "关闭后，未保存的标注将丢失。", FontSize = 13, Foreground = LightTheme.Brush("#65717F") });
-            content.Children.Add(new Border {
-                Margin = new Thickness(0, 16, 0, 22), Padding = new Thickness(12, 10, 12, 10), CornerRadius = new CornerRadius(7), Background = LightTheme.Brush("#F5F7FA"),
-                Child = new TextBlock { Text = Path.GetFileName(path), FontSize = 12, Foreground = LightTheme.Brush("#536172"), TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = Path.GetFileName(path) }
-            });
+            content.Children.Add(UiTheme.Paint(new TextBlock { Text = "关闭后，未保存的标注将丢失。", FontSize = 13 }, TextBlock.ForegroundProperty, "Ui.TextMuted"));
+            var file = UiTheme.Paint(new Border {
+                Margin = new Thickness(0, 16, 0, 22), Padding = new Thickness(12, 10, 12, 10), CornerRadius = new CornerRadius(7),
+                Child = UiTheme.Paint(new TextBlock { Text = Path.GetFileName(path), FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = Path.GetFileName(path) }, TextBlock.ForegroundProperty, "Ui.TextSecondary")
+            }, Border.BackgroundProperty, "Ui.SurfaceSubtle");
+            content.Children.Add(file);
             var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
             var discard = LightTheme.Button("不保存", () => Choose(MessageBoxResult.No));
             var cancel = LightTheme.Button("继续编辑", () => Choose(MessageBoxResult.Cancel));

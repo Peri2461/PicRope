@@ -53,7 +53,8 @@ namespace ScreenLine
             photo.Source = image ?? card.Item.Image.Thumbnail;
             photo.Stretch = Stretch.Fill;
             border.Child = photo;
-            border.BorderBrush = new SolidColorBrush(Color.FromRgb(220, 225, 233));
+            UiTheme.Paint(border, Border.BackgroundProperty, "Ui.Surface");
+            UiTheme.Paint(border, Border.BorderBrushProperty, "Ui.Border");
             border.Effect = shadow;
             frame.Children.Add(border);
             frame.Children.Add(clip);
@@ -121,7 +122,8 @@ namespace ScreenLine
             Canvas.SetTop(frame, y);
             turn.CenterX = width / 2;
             turn.CenterY = -12;
-            border.Background = new SolidColorBrush(Color.FromArgb((byte)(245 * chrome), 255, 255, 255));
+            Color surface = UiTheme.MediaColor("Ui.Surface");
+            border.Background = new SolidColorBrush(Color.FromArgb((byte)(245 * chrome), surface.R, surface.G, surface.B));
             border.BorderThickness = new Thickness(chrome);
             border.CornerRadius = new CornerRadius(12 * (Falling ? 1 : ease));
             photo.Margin = new Thickness(6 * (Falling ? 1 : ease));
@@ -155,7 +157,7 @@ namespace ScreenLine
             Canvas.SetLeft(frame, x - width / 2); Canvas.SetTop(frame, top);
             turn.CenterX = width / 2; turn.CenterY = height / 2;
             turn.Angle = card.Tilt * (1 - ease) + Math.Sign(endX - startX) * 10 * Math.Sin(Math.PI * ease);
-            border.Background = Brushes.White; border.BorderThickness = new Thickness(1);
+            border.BorderThickness = new Thickness(1);
             border.CornerRadius = new CornerRadius(Math.Min(9, width * 0.09));
             photo.Margin = new Thickness(Math.Min(6, width * 0.04));
             shadow.Opacity = 0.16 * (1 - ease); clip.Opacity = 0;

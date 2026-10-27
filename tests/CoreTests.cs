@@ -195,6 +195,28 @@ namespace ScreenLine.Tests
                 File.WriteAllText(Path.Combine(store.Root, "state.json"), "{\"Images\":[\"旧截图.png\"]}");
                 Check(new StateStore(store.Root).State.AutoHang);
             });
+            Run("深浅色默认跟随系统并可保存切换", delegate
+            {
+                var store = new StateStore(Path.Combine(root, "dark-mode-profile"));
+                Check(store.State.ColorMode == "system");
+                store.State.ColorMode = "dark";
+                store.Save();
+                Check(new StateStore(store.Root).State.ColorMode == "dark");
+                store.State.ColorMode = "light";
+                store.Save();
+                Check(new StateStore(store.Root).State.ColorMode == "light");
+                File.WriteAllText(Path.Combine(store.Root, "state.json"), "{\"Images\":[\"旧截图.png\"]}");
+                Check(new StateStore(store.Root).State.ColorMode == "system");
+            });
+            Run("旧版布尔深色配置映射为固定深浅色", delegate
+            {
+                string profile = Path.Combine(root, "legacy-dark-profile");
+                Directory.CreateDirectory(profile);
+                File.WriteAllText(Path.Combine(profile, "state.json"), "{\"DarkMode\":true,\"Images\":[\"旧截图.png\"]}");
+                Check(new StateStore(profile).State.ColorMode == "dark" && new StateStore(profile).State.Images.Single() == "旧截图.png");
+                File.WriteAllText(Path.Combine(profile, "state.json"), "{\"DarkMode\":false,\"CollectClipboard\":true}");
+                Check(new StateStore(profile).State.ColorMode == "light" && new StateStore(profile).State.CollectClipboard);
+            });
             Run("设置与中文路径可持久化并原子替换", delegate
             {
                 string profile = Path.Combine(root, "state-profile");

@@ -267,8 +267,16 @@ async function finishTool(apply){
 function refreshZoom(){
   document.getElementById('zoom').textContent=(document.querySelector('.FIE_topbar-zoom-label')?.textContent||'')+' · 适应窗口';
 }
+const palettes={light:{'accent-primary':'#2463ae','accent-primary-active':'#1b5498','bg-primary-active':'#edf4ff','bg-secondary':'#f0f1f3',
+  'icons-primary':'#536172','icons-secondary':'#65717f','borders-secondary':'#e5e9ef','borders-primary':'#dce2ea'},
+  dark:{'accent-primary':'#5a9bd8','accent-primary-active':'#6fafe8','bg-primary-active':'#1b3047','bg-secondary':'#242624',
+  'icons-primary':'#a7b0bc','icons-secondary':'#8b96a4','borders-secondary':'#2d302d','borders-primary':'#353836'}};
+function setTheme(dark){document.body.dataset.theme=dark?'dark':'light';}
+window.applyEditorTheme=setTheme;
 
 window.startEditor=async function(options){
+  const dark=!!options.dark;
+  setTheme(dark);
   document.getElementById('filename').textContent=options.name;
   const source=new Image();
   await new Promise((resolve,reject)=>{source.onload=resolve;source.onerror=reject;source.src=options.source;});
@@ -284,9 +292,7 @@ window.startEditor=async function(options){
     Rect:{fill:'transparent'},Ellipse:{fill:'transparent'},Polygon:{fill:'transparent'},
     Text:{text:'',...textStyle,fonts:['Microsoft YaHei'],stroke:'transparent',strokeWidth:0},
     Rotate:{angle:90,componentType:'buttons'},
-    theme:{typography:{fontFamily:'"Segoe UI","Microsoft YaHei",sans-serif'},palette:{
-      'accent-primary':'#2463ae','accent-primary-active':'#1b5498','bg-primary-active':'#edf4ff','bg-secondary':'#f0f1f3',
-      'icons-primary':'#536172','icons-secondary':'#65717f','borders-secondary':'#e5e9ef','borders-primary':'#dce2ea'}},
+    theme:{typography:{fontFamily:'"Segoe UI","Microsoft YaHei",sans-serif'},palette:dark?palettes.dark:palettes.light},
     translations:window.editorTranslations,
     onSave:()=>window.submit('save'),
     onModify:state=>{history=state;currentKey=stateKey(state);syncButtons();syncDrawingStyle(state);if(ready)send({action:'dirty',value:currentKey!==baseline});}

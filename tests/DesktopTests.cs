@@ -54,7 +54,7 @@ namespace ScreenLine.Tests
             };
             application.Startup += async delegate
             {
-                try { await Run(arguments.Contains("--visibility"), arguments.Contains("--menus"), arguments.Contains("--editor"), arguments.Contains("--discard"), arguments.Contains("--shelf-motion"), arguments.Contains("--pins"), arguments.Contains("--themes"), arguments.Contains("--copied"), arguments.Contains("--wind"), arguments.Contains("--basket"), arguments.Contains("--scroll-bounds"), arguments.Contains("--basket-appearance"), arguments.Contains("--basket-motion")); Console.WriteLine("桌面测试：{0} 项通过", checks); }
+                try { await Run(arguments.Contains("--visibility"), arguments.Contains("--menus"), arguments.Contains("--editor"), arguments.Contains("--discard"), arguments.Contains("--shelf-motion"), arguments.Contains("--pins"), arguments.Contains("--themes"), arguments.Contains("--copied"), arguments.Contains("--wind"), arguments.Contains("--basket"), arguments.Contains("--scroll-bounds"), arguments.Contains("--basket-appearance"), arguments.Contains("--basket-motion"), arguments.Contains("--dark-mode")); Console.WriteLine("桌面测试：{0} 项通过", checks); }
                 catch (Exception error) { Console.WriteLine("桌面测试失败：" + error); Environment.ExitCode = 1; }
                 if (!passiveInput) mouse_event(4, 0, 0, 0, UIntPtr.Zero);
                 try
@@ -74,7 +74,7 @@ namespace ScreenLine.Tests
             application.Run();
         }
 
-        static async Task Run(bool visibilityOnly, bool menusOnly, bool editorOnly, bool discardOnly, bool shelfMotionOnly, bool pinsOnly, bool themesOnly, bool copiedOnly, bool windOnly, bool basketOnly, bool scrollOnly, bool basketAppearanceOnly, bool basketMotionOnly)
+        static async Task Run(bool visibilityOnly, bool menusOnly, bool editorOnly, bool discardOnly, bool shelfMotionOnly, bool pinsOnly, bool themesOnly, bool copiedOnly, bool windOnly, bool basketOnly, bool scrollOnly, bool basketAppearanceOnly, bool basketMotionOnly, bool darkModeOnly)
         {
             CheckCaptureTimes();
             previousPointer = WindowsNative.Cursor();
@@ -101,8 +101,10 @@ namespace ScreenLine.Tests
             string watched = Path.Combine(root, "WindowsScreenshots");
             Directory.CreateDirectory(watched);
             var store = new StateStore(Path.Combine(root, "profile"));
+            UiTheme.Apply(UiTheme.Resolve(store.State.ColorMode));
             controller = new DesktopController(store, watched, false);
             await controller.Start();
+            if (darkModeOnly) { await CheckDarkMode(store); return; }
             if (basketMotionOnly) { await CheckBasketMotion(store); return; }
             if (basketAppearanceOnly) { await CheckBasketAppearance(store); return; }
             if (scrollOnly) { await CheckScrollBoundaries(store); return; }
@@ -552,6 +554,139 @@ namespace ScreenLine.Tests
             var bitmap = new RenderTargetBitmap(1440, 1024, 96, 96, PixelFormats.Pbgra32); bitmap.Render(drawing);
             var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
             using (var file = File.Create(Path.Combine(directory, "实际界面.png"))) encoder.Save(file);
+        }
+
+        static async Task CheckDarkMode(StateStore store)
+        {
+            var shelf = controller.Shelf;
+            Check(new StateStore(store.Root).State.ColorMode == "system", "首次启动默认跟随系统深浅色");
+            Check(UiTheme.Dark == UiTheme.SystemDark, "跟随系统使用系统当前深浅色");
+            Directory.CreateDirectory(store.Inbox);
+            byte[] bytes = Asset("深色模式", "浅色与深色可随时切换", Color.FromRgb(25, 40, 63));
+            string path = Path.Combine(store.Inbox, "深色模式.png");
+            File.WriteAllBytes(path, bytes);
+            controller.Gallery.Add(path, ImageContent.Decode(bytes));
+            shelf.Reveal(true, true, 0);
+            await Task.Delay(700);
+            var card = shelf.CardFor(path);
+            Color lightSurface = ((SolidColorBrush)card.Surface.Background).Color;
+
+            controller.TrayMenu.AppearanceButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var chooser = controller.Appearance;
+            await Task.Delay(250);
+            Check(chooser != null && chooser.ModeButton("dark") != null && chooser.ModeButton("light") != null && chooser.ModeButton("system") != null,
+                "外观面板提供跟随系统、浅色与深色三种模式");
+            Check(AutomationProperties.GetAutomationId(chooser.ModeButton("dark")) == "mode-dark", "深色模式按钮提供自动化标识");
+            Check(chooser.Selection == "system", "深浅色默认选中跟随系统");
+
+            chooser.ModeButton("light").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Task.Delay(250);
+            Check(chooser.Selection == "light" && !UiTheme.Dark, "选择浅色模式即时切换到浅色外观");
+            lightSurface = ((SolidColorBrush)card.Surface.Background).Color;
+            Check(lightSurface.R > 200, "已挂图片卡片即时使用浅色底");
+
+            chooser.ModeButton("dark").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Task.Delay(250);
+            Check(chooser.Selection == "dark" && UiTheme.Dark, "选择深色模式即时切换到深色外观");
+            Check(((SolidColorBrush)Application.Current.Resources["Ui.Surface"]).Color == (Color)ColorConverter.ConvertFromString("#242624"),
+                "深色外观使用深色表面色");
+            Check(new StateStore(store.Root).State.ColorMode == "dark", "深色模式选择即时保存");
+            Color darkSurface = ((SolidColorBrush)card.Surface.Background).Color;
+            Check(darkSurface != lightSurface && darkSurface.R < 80, "已挂图片卡片即时使用深色底");
+
+            string directory = Path.Combine(Path.GetDirectoryName(PinPreviewPath("")), "深色模式");
+            Directory.CreateDirectory(directory);
+            CaptureScreen(new Rect(chooser.PointToScreen(new Point()), chooser.PointToScreen(new Point(chooser.ActualWidth, chooser.ActualHeight))),
+                Path.Combine(directory, "外观-深色.png"));
+            CaptureScreen(new Rect(shelf.PointToScreen(new Point()), shelf.PointToScreen(new Point(shelf.ActualWidth, 180))),
+                Path.Combine(directory, "绳子-深色.png"));
+            chooser.Close();
+            await Task.Delay(150);
+
+            Point menuPoint = card.Surface.PointToScreen(new Point(card.Surface.ActualWidth / 2, card.Surface.ActualHeight / 2));
+            SetCursorPos((int)menuPoint.X, (int)menuPoint.Y);
+            await Task.Delay(120);
+            card.Surface.RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(System.Windows.Input.Mouse.PrimaryDevice, Environment.TickCount, System.Windows.Input.MouseButton.Right) { RoutedEvent = UIElement.MouseRightButtonUpEvent });
+            await Until(() => card.ActionMenu.IsOpen);
+            Check(((SolidColorBrush)((Border)card.ActionMenu.Items[0]).Background).Color.R < 80, "图片右键菜单跟随深色模式");
+            using (var output = File.Create(Path.Combine(directory, "图片菜单-深色.png")))
+            {
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(RenderMenu(card.ActionMenu)));
+                encoder.Save(output);
+            }
+            card.ActionMenu.IsOpen = false;
+            await Until(() => !card.ActionMenu.IsOpen);
+
+            controller.ShowBasket();
+            await Task.Delay(300);
+            var basketCard = (Border)controller.Basket.Content;
+            Check(((SolidColorBrush)basketCard.Background).Color.R < 80, "图片篮子跟随深色模式");
+            CaptureScreen(new Rect(controller.Basket.PointToScreen(new Point()), controller.Basket.PointToScreen(new Point(controller.Basket.ActualWidth, controller.Basket.ActualHeight))),
+                Path.Combine(directory, "篮子-深色.png"));
+            controller.Basket.Close();
+            await Task.Delay(150);
+
+            controller.Act(ShotAction.Edit, card.Item);
+            await Until(() => controller.Editors.Count == 1);
+            var editor = controller.Editors[0];
+            if (await Task.WhenAny(editor.Ready, Task.Delay(20000)) != editor.Ready) throw new Exception("深色模式编辑器加载超时");
+            await editor.Ready;
+            Check(await editor.Browser.ExecuteScriptAsync("document.body.dataset.theme==='dark'") == "true", "图片编辑器跟随深色模式");
+            Check(await editor.Browser.ExecuteScriptAsync("getComputedStyle(document.body).getPropertyValue('--bg').trim()==='#191b1a'") == "true", "编辑器画布使用深色背景");
+            using (var output = File.Create(Path.Combine(directory, "编辑器-深色.png")))
+                await editor.Browser.CoreWebView2.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, output);
+            editor.CloseWithoutPrompt();
+            await Until(() => controller.Editors.Count == 0);
+
+            var screen = Forms.Screen.PrimaryScreen;
+            SetCursorPos(screen.WorkingArea.Right - 35, screen.WorkingArea.Bottom + 12);
+            controller.ShowTrayMenu();
+            await Until(() => controller.TrayMenu.IsOpen && controller.TrayMenu.ActualHeight > 0);
+            var trayPreview = RenderMenu(controller.TrayMenu);
+            int stride = trayPreview.PixelWidth * 4;
+            var pixels = new byte[stride * trayPreview.PixelHeight];
+            trayPreview.CopyPixels(pixels, stride, 0);
+            int offset = ((int)(trayPreview.PixelHeight * 0.5) * stride) + 40 * 4;
+            Check(pixels[offset + 2] < 80, "托盘菜单跟随深色模式");
+            using (var output = File.Create(Path.Combine(directory, "托盘-深色.png")))
+            {
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(trayPreview));
+                encoder.Save(output);
+            }
+            controller.TrayMenu.Close();
+            await Task.Delay(150);
+
+            controller.ShowTexts();
+            await Task.Delay(400);
+            var textWindow = controller.TextWindow;
+            var textCard = (Border)((Grid)textWindow.Content).Children[0];
+            Check(((SolidColorBrush)textCard.Background).Color.R < 80, "文字信封跟随深色模式");
+            CaptureScreen(new Rect(textWindow.PointToScreen(new Point()), textWindow.PointToScreen(new Point(textWindow.ActualWidth, textWindow.ActualHeight))),
+                Path.Combine(directory, "文字-深色.png"));
+            textWindow.Close();
+            await Task.Delay(150);
+
+            UiTheme.Apply(UiTheme.Resolve(new StateStore(store.Root).State.ColorMode));
+            controller.Dispose();
+            controller = new DesktopController(new StateStore(store.Root), Path.Combine(Path.GetDirectoryName(store.Root), "WindowsScreenshots"), false);
+            await controller.Start();
+            Check(UiTheme.Dark && controller.Gallery.Items.Count == 1, "重新启动恢复深色模式与挂图");
+            controller.TrayMenu.AppearanceButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Task.Delay(250);
+            Check(controller.Appearance.Selection == "dark", "重新启动后深色模式保持选中");
+            var restored = controller.Shelf.CardFor(path);
+            Check(restored != null && ((SolidColorBrush)restored.Surface.Background).Color.R < 80, "恢复的挂图沿用深色底");
+            controller.Appearance.ModeButton("light").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Task.Delay(250);
+            Check(!UiTheme.Dark && new StateStore(store.Root).State.ColorMode == "light", "切换浅色模式恢复浅色并保存");
+            Check(((SolidColorBrush)restored.Surface.Background).Color.R > 200, "切换浅色后挂图恢复浅色底");
+            controller.Appearance.ModeButton("system").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Task.Delay(250);
+            Check(new StateStore(store.Root).State.ColorMode == "system" && UiTheme.Dark == UiTheme.SystemDark, "切换跟随系统后按系统深浅色显示");
+            controller.Appearance.Close();
+            Check(!File.Exists(Path.Combine(store.Root, "error.log")), "深色模式切换与重启全过程没有运行错误");
         }
 
         static async Task CheckThemes(StateStore store, string watched)
@@ -2052,6 +2187,8 @@ namespace ScreenLine.Tests
             {
                 if (DateTime.UtcNow >= deadline) throw new Exception("等待结果超时，当前图片数量：" + controller.Gallery.Items.Count
                     + "，展开：" + controller.Shelf.Revealed + "，鼠标命中：" + WindowFromPoint(WindowsNative.Cursor())
+                    + "，命中标题：" + WindowsNative.WindowTitle(WindowFromPoint(WindowsNative.Cursor()))
+                    + "，大图预览：" + (controller.Shelf.LargePreview != null)
                     + "，绳子窗口：" + controller.Shelf.Handle
                     + "，鼠标位置：" + WindowsNative.Cursor().X + "," + WindowsNative.Cursor().Y
                     + "，全屏：" + WindowsNative.FullScreen(controller.Shelf.Display, controller.Shelf.Handle));
