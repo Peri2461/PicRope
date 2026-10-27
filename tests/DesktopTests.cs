@@ -1899,6 +1899,48 @@ namespace ScreenLine.Tests
             await ClickMenu(trayMenu.TextButton);
             Check(!trayMenu.IsOpen && controller.TextWindow != null, "文字信封快捷入口打开文字列表并关闭菜单");
             controller.TextWindow.Close();
+            await CheckBulkHover(store);
+        }
+
+        static async Task CheckBulkHover(StateStore store)
+        {
+            string[] paths =
+            {
+                Path.Combine(store.Inbox, "悬停批量一.png"),
+                Path.Combine(store.Inbox, "悬停批量二.png"),
+                Path.Combine(store.Inbox, "悬停批量三.png")
+            };
+            for (int index = 0; index < paths.Length; index++)
+            {
+                byte[] content = Asset("悬停批量 " + (index + 1), "批量取下 · 悬停高亮", Color.FromRgb((byte)(80 + index * 40), 120, 160));
+                File.WriteAllBytes(paths[index], content);
+                controller.Gallery.Add(paths[index], ImageContent.Decode(content));
+            }
+            controller.Shelf.Reveal(true, true, 0);
+            await Until(() => controller.Gallery.Items.Count == paths.Length);
+            await Task.Delay(700);
+            var card = controller.Shelf.CardFor(paths[1]);
+            Point cardPoint = card.Surface.PointToScreen(new Point(card.Surface.ActualWidth / 2, card.Surface.ActualHeight / 2));
+            SetCursorPos((int)cardPoint.X, (int)cardPoint.Y);
+            await Task.Delay(120);
+            card.ActionMenu.IsOpen = true;
+            await Until(() => card.ActionMenu.IsOpen && card.ActionMenu.ActualHeight > 0);
+            Check(card.ActionMenu.BulkMenu.IsEnabled, "多张图片时批量取下可用");
+            Point bulkPoint = card.ActionMenu.BulkMenu.PointToScreen(new Point(card.ActionMenu.BulkMenu.ActualWidth / 2, card.ActionMenu.BulkMenu.ActualHeight / 2));
+            SetCursorPos((int)bulkPoint.X, (int)bulkPoint.Y);
+            await Task.Delay(150);
+            SetCursorPos((int)bulkPoint.X + 1, (int)bulkPoint.Y);
+            await Until(() => card.ActionMenu.BulkMenu.IsSubmenuOpen);
+            await Task.Delay(120);
+            var row = (Border)card.ActionMenu.BulkMenu.Template.FindName("Surface", card.ActionMenu.BulkMenu);
+            var hovered = row.Background as SolidColorBrush;
+            Check(hovered != null && hovered.Color == Color.FromRgb(0xF0, 0xF3, 0xF7), "悬停批量取下时显示高亮");
+            SetCursorPos(600, 700);
+            await Until(() => !card.ActionMenu.BulkMenu.IsSubmenuOpen);
+            await Task.Delay(120);
+            var rested = row.Background as SolidColorBrush;
+            Check(rested == null || rested.Color != Color.FromRgb(0xF0, 0xF3, 0xF7), "移开鼠标后批量取下行清除高亮");
+            card.ActionMenu.IsOpen = false;
         }
 
         static async Task ClickMenu(FrameworkElement entry)
