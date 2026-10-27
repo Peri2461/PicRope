@@ -43,28 +43,18 @@ namespace ScreenLine
             var modeGrid = new Grid();
             var modeText = UiTheme.Paint(new TextBlock { Text = "跟随系统，或固定使用浅色、深色", FontSize = 12, VerticalAlignment = VerticalAlignment.Center }, TextBlock.ForegroundProperty, "Ui.Accent");
             modeGrid.Children.Add(modeText);
-            var pill = new Border {
-                CornerRadius = new CornerRadius(14), Padding = new Thickness(2),
-                HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center
-            };
-            UiTheme.Paint(pill, Border.BackgroundProperty, "Ui.Surface");
-            UiTheme.Paint(pill, Border.BorderBrushProperty, "Ui.Border");
-            pill.BorderThickness = new Thickness(1);
-            var modes = new StackPanel { Orientation = Orientation.Horizontal };
-            foreach (var choice in new[] {
-                new { Id = "system", Name = "跟随系统" },
-                new { Id = "light", Name = "浅色" },
-                new { Id = "dark", Name = "深色" } })
+            var modes = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
+            string[] ids = { "system", "light", "dark" }, names = { "跟随系统", "浅色模式", "深色模式" };
+            for (int i = 0; i < ids.Length; i++)
             {
-                string id = choice.Id;
-                var button = new Button { Content = choice.Name, Style = SegmentStyle, FontSize = 12 };
-                button.Click += delegate { Choose(id); };
-                System.Windows.Automation.AutomationProperties.SetName(button, choice.Name);
+                string id = ids[i];
+                var button = LightTheme.Button(names[i], delegate { Choose(id); });
+                if (i > 0) button.Margin = new Thickness(8, 0, 0, 0);
+                System.Windows.Automation.AutomationProperties.SetName(button, names[i]);
                 System.Windows.Automation.AutomationProperties.SetAutomationId(button, "mode-" + id);
                 modeButtons[id] = button; modes.Children.Add(button);
             }
-            pill.Child = modes;
-            modeGrid.Children.Add(pill);
+            modeGrid.Children.Add(modes);
             modeRow.Child = modeGrid;
             body.Children.Add(modeRow);
             SelectMode(mode);
@@ -118,25 +108,6 @@ namespace ScreenLine
                 System.Windows.Automation.AutomationProperties.SetItemStatus(entry.Value, current ? "已选择" : "");
             }
         }
-
-        static readonly System.Windows.Style SegmentStyle = (System.Windows.Style)System.Windows.Markup.XamlReader.Parse(@"
-<Style xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' TargetType='Button'>
-  <Setter Property='Foreground' Value='{DynamicResource Ui.TextSecondary}'/>
-  <Setter Property='Background' Value='Transparent'/>
-  <Setter Property='Height' Value='24'/><Setter Property='Padding' Value='12,0'/>
-  <Setter Property='Cursor' Value='Hand'/><Setter Property='FocusVisualStyle' Value='{x:Null}'/>
-  <Setter Property='Template'><Setter.Value><ControlTemplate TargetType='Button'>
-    <Border x:Name='Surface' CornerRadius='11' Background='{TemplateBinding Background}'>
-      <ContentPresenter Margin='{TemplateBinding Padding}' HorizontalAlignment='Center' VerticalAlignment='Center' RecognizesAccessKey='True'/>
-    </Border>
-    <ControlTemplate.Triggers>
-      <Trigger Property='IsMouseOver' Value='True'><Setter TargetName='Surface' Property='Background' Value='{DynamicResource Ui.Hover}'/></Trigger>
-      <Trigger Property='Tag' Value='primary'><Setter Property='Background' Value='{DynamicResource Ui.Accent}'/><Setter Property='Foreground' Value='{DynamicResource Ui.White}'/><Setter Property='FontWeight' Value='SemiBold'/></Trigger>
-      <MultiTrigger><MultiTrigger.Conditions><Condition Property='Tag' Value='primary'/><Condition Property='IsMouseOver' Value='True'/></MultiTrigger.Conditions><Setter TargetName='Surface' Property='Background' Value='{DynamicResource Ui.AccentHover}'/></MultiTrigger>
-      <Trigger Property='IsPressed' Value='True'><Setter TargetName='Surface' Property='Opacity' Value='0.88'/></Trigger>
-    </ControlTemplate.Triggers>
-  </ControlTemplate></Setter.Value></Setter>
-</Style>");
 
         void Selected(LineTheme theme)
         {
