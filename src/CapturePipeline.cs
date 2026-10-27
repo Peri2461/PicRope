@@ -178,6 +178,68 @@ namespace ScreenLine
             catch (UnauthorizedAccessException) { return false; }
         }
 
+        // 上传与拖上绳子共用：收集目录外的图片复制一份副本，原文件保持不动。
+        async Task<CaptureItem> CopyIntoInbox(string path)
+        {
+            ImageContent image = await Task.Run(() => ImageContent.Read(path));
+            if (disposed) return null;
+            string target = path;
+            if (!FileRules.IsInside(path, gallery.Store.Inbox))
+            {
+                target = AvailableInboxPath(path);
+                string source = path;
+                await Task.Run(delegate { File.Copy(source, target, false); });
+            }
+            return gallery.Collect(target, image);
+        }
+
+        // 拖到篮子：复制为收集目录中的副本收进待挂，原文件不动。
+        public async Task<bool> Upload(string path)
+        {
+            try
+            {
+                CaptureItem item = await CopyIntoInbox(path);
+                return item != null;
+            }
+            catch (IOException error) { Report(error, path); return false; }
+            catch (NotSupportedException error) { Report(error, path); return false; }
+            catch (UnauthorizedAccessException error) { Report(error, path); return false; }
+        }
+
+        // 拖到绳子：与上传一致保存副本，复制后直接挂上，不进入待挂。
+        public async Task<bool> HangDrop(string path)
+        {
+            try
+            {
+                CaptureItem item = await CopyIntoInbox(path);
+                if (item == null) return false;
+                if (!gallery.Contains(item.Path))
+                {
+                    gallery.Add(item.Path, item.Image);
+                    if (Arrived != null) Arrived(item, null);
+                }
+                return true;
+            }
+            catch (IOException error) { Report(error, path); return false; }
+            catch (NotSupportedException error) { Report(error, path); return false; }
+            catch (UnauthorizedAccessException error) { Report(error, path); return false; }
+        }
+
+        string AvailableInboxPath(string source)
+        {
+            string name = Path.GetFileName(source);
+            string target = Path.Combine(gallery.Store.Inbox, name);
+            for (int index = 1; File.Exists(target); index++)
+                target = Path.Combine(gallery.Store.Inbox, Path.GetFileNameWithoutExtension(name) + " (" + index + ")" + Path.GetExtension(name));
+            return target;
+        }
+
+        void Report(Exception error, string path)
+        {
+            gallery.Store.Log(error);
+            if (Failed != null) Failed("无法读取图片：" + Path.GetFileName(path));
+        }
+
         public void Hang(CaptureItem item)
         {
             if (disposed || gallery.Contains(item.Path)) return;

@@ -63,6 +63,8 @@ namespace ScreenLine
             Captures = new CapturePipeline(Gallery, Application.Current.Dispatcher, screenshots);
             Shelf = new ShelfWindow(Gallery, Act, EnableClipboard);
             Shelf.BasketRequested += ShowBasket;
+            Shelf.BasketImageDropped += CollectDropped;
+            Shelf.RopeImageDropped += Captures.HangDrop;
             Shelf.TextRequested += ShowTexts;
             Texts.Changed += Shelf.UpdateTexts;
             events = new WindowsEvents();
@@ -269,6 +271,11 @@ namespace ScreenLine
                 screenshotOverlay = null;
                 screenshotBusy = false;
             }
+        }
+
+        async void CollectDropped(string file)
+        {
+            await Captures.Upload(file);
         }
 
         internal void ShowBasket()
