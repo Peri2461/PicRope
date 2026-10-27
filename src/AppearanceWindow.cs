@@ -41,7 +41,7 @@ namespace ScreenLine
             body.Children.Add(UiTheme.Paint(new TextBlock { Text = "界面深浅色与绳子外观分别切换", FontSize = 12, Margin = new Thickness(0, 0, 0, 14) }, TextBlock.ForegroundProperty, "Ui.TextMuted"));
             var modeRow = UiTheme.Paint(new Border { CornerRadius = new CornerRadius(9), Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 0, 0, 18) }, Border.BackgroundProperty, "Ui.SurfaceSubtle");
             var modeGrid = new Grid();
-            var modeText = UiTheme.Paint(new TextBlock { Text = "跟随系统，或固定使用浅色、深色", FontSize = 12, VerticalAlignment = VerticalAlignment.Center }, TextBlock.ForegroundProperty, "Ui.Accent");
+            var modeText = UiTheme.Paint(new TextBlock { Text = "主题色", FontSize = 12, VerticalAlignment = VerticalAlignment.Center }, TextBlock.ForegroundProperty, "Ui.Accent");
             modeGrid.Children.Add(modeText);
             var modes = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
             string[] ids = { "system", "light", "dark" }, names = { "跟随系统", "浅色模式", "深色模式" };
