@@ -217,7 +217,10 @@ namespace ScreenLine.Tests
             mouse_event(2, 0, 0, 0, UIntPtr.Zero);
             await Task.Delay(150);
             Check(WindowFromPoint(WindowsNative.Cursor()) == controller.Shelf.Handle, "按住左键拖动时绳子空白区域可以接收文件");
-            Check(dropFrame.Visibility == Visibility.Visible, "拖拽悬停时绳子显示接图提示框");
+            Check(dropFrame.Visibility == Visibility.Collapsed, "未确认图片拖拽前不显示接图提示");
+            ((Grid)controller.Shelf.Content).RaiseEvent(DragEvent(new DataObject(DataFormats.FileDrop, new[] { folderImage }), (Grid)controller.Shelf.Content, new Point(300, 70), DragDrop.DragEnterEvent));
+            await Task.Delay(100);
+            Check(dropFrame.Visibility == Visibility.Visible, "确认图片拖拽后显示接图提示框");
             mouse_event(4, 0, 0, 0, UIntPtr.Zero);
             await Task.Delay(150);
             Check(WindowFromPoint(WindowsNative.Cursor()) != controller.Shelf.Handle, "松开鼠标后透明区域恢复点击穿透");
@@ -573,6 +576,9 @@ namespace ScreenLine.Tests
             var noteOver = DragEvent(new DataObject(DataFormats.FileDrop, new[] { note }), dropSurface, dropPoint, DragDrop.DragOverEvent);
             dropSurface.RaiseEvent(noteOver);
             Check(noteOver.Effects == DragDropEffects.None, "非图片文件拖到绳子上不会挂图");
+            dropSurface.RaiseEvent(DragEvent(new DataObject(DataFormats.FileDrop, new[] { note }), dropSurface, dropPoint, DragDrop.DragEnterEvent));
+            Check(!(bool)typeof(ShelfWindow).GetField("dropActive", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(controller.Shelf),
+                "非图片拖拽进入绳子不会激活接图状态");
             var basketBadge = (Border)typeof(ShelfWindow).GetField("basketBadge", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(controller.Shelf);
             var basketChip = (Border)typeof(ShelfWindow).GetField("basketDropChip", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(controller.Shelf);
             controller.Shelf.BasketButton.RaiseEvent(DragEvent(dragData, controller.Shelf.BasketButton, new Point(70, 80), DragDrop.DragEnterEvent));
@@ -582,6 +588,8 @@ namespace ScreenLine.Tests
             Check(basketChip.Visibility == Visibility.Collapsed
                 && ((SolidColorBrush)basketBadge.Background).Color == (Color)ColorConverter.ConvertFromString("#D920242C"),
                 "离开篮子后提示隐藏并恢复徽标底色");
+            controller.Shelf.BasketButton.RaiseEvent(DragEvent(new DataObject(DataFormats.FileDrop, new[] { note }), controller.Shelf.BasketButton, new Point(70, 80), DragDrop.DragEnterEvent));
+            Check(basketChip.Visibility == Visibility.Collapsed, "非图片拖到篮子上不显示收进待挂提示");
             await Until(() => !controller.Shelf.MotionWindows.Any());
             Check(!File.Exists(Path.Combine(store.Root, "error.log")), "图片篓与拖放完整操作过程没有运行错误");
         }

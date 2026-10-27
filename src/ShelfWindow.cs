@@ -38,6 +38,9 @@ namespace ScreenLine
         readonly Border dropVeil = new Border { Background = Brushes.Transparent, IsHitTestVisible = false };
         static readonly Brush dropVeilBrush = LightTheme.Brush("#02FFFFFF");
         readonly Grid dropFrame;
+        // 拖拽接管状态：arm 为临时接管等待确认；active 为已确认的图片拖拽；rejected 为本次拖拽不含图片或非 OLE 拖拽。
+        bool dropArmed, dropActive, dropRejected;
+        DateTime dropArmSince;
         readonly System.Windows.Shapes.Path rope = new System.Windows.Shapes.Path();
         readonly LinearGradientBrush edgeMask = new LinearGradientBrush(new GradientStopCollection {
             new GradientStop(Colors.White, 0), new GradientStop(Colors.White, 0.03),
@@ -185,7 +188,7 @@ namespace ScreenLine
             };
             BasketButton.DragEnter += delegate(object sender, DragEventArgs args)
             {
-                if (!args.Data.GetDataPresent(DataFormats.FileDrop)) return;
+                if (!OleDropHasImage(args)) return;
                 // 拖图悬停：篮子轻轻摆动，徽标亮起主题色，底部出现收进待挂的提示。
                 basketMotion.Target = 1.3; StartRendering();
                 basketBadge.SetResourceReference(Border.BackgroundProperty, "Ui.Accent");
@@ -214,7 +217,7 @@ namespace ScreenLine
             basketDropChip.HorizontalAlignment = HorizontalAlignment.Center;
             UiTheme.Paint(basketDropChip, Border.BackgroundProperty, "Ui.SurfaceGlass");
             UiTheme.Paint(basketDropChip, Border.BorderBrushProperty, "Ui.Border");
-            basketDropChip.Child = UiTheme.Paint(new TextBlock { Text = "松开，收进待挂", FontSize = 12, FontWeight = FontWeights.SemiBold }, TextBlock.ForegroundProperty, "Ui.Accent");
+            basketDropChip.Child = UiTheme.Paint(new TextBlock { Text = "松开，收进篮子", FontSize = 12, FontWeight = FontWeights.SemiBold }, TextBlock.ForegroundProperty, "Ui.Accent");
             basketChipHolder.Children.Add(basketDropChip);
             Canvas.SetTop(basketChipHolder, 190);
             basket.Children.Add(basketChipHolder);
@@ -266,6 +269,18 @@ namespace ScreenLine
             hint.Effect = new DropShadowEffect { BlurRadius = 16, ShadowDepth = 3, Opacity = 0.18 };
             content.Children.Add(hint);
 
+            root.DragEnter += delegate(object sender, DragEventArgs args)
+            {
+                args.Handled = true;
+                dropArmed = true; dropArmSince = DateTime.UtcNow;
+                if (OleDropHasImage(args)) dropActive = true;
+                else { dropRejected = true; dropArmed = false; dropActive = false; }
+            };
+            root.DragLeave += delegate(object sender, DragEventArgs args)
+            {
+                args.Handled = true;
+                dropActive = false; dropArmed = false;
+            };
             root.DragOver += delegate(object sender, DragEventArgs args)
             {
                 args.Effects = DropAllowed(args) ? DragDropEffects.Copy : DragDropEffects.None;
@@ -274,6 +289,7 @@ namespace ScreenLine
             root.Drop += async delegate(object sender, DragEventArgs args)
             {
                 args.Handled = true;
+                dropActive = false; dropArmed = false;
                 if (!DropAllowed(args)) return;
                 foreach (string file in (string[])args.Data.GetData(DataFormats.FileDrop)) await AcceptRopeDrop(file);
             };
@@ -476,11 +492,16 @@ namespace ScreenLine
         // 绳子本体接住图片文件；右侧篮子与文字入口沿用各自的拖放行为。
         bool DropAllowed(DragEventArgs args)
         {
-            if (RopeImageDropped == null || !args.Data.GetDataPresent(DataFormats.FileDrop)) return false;
-            string[] files = args.Data.GetData(DataFormats.FileDrop) as string[];
-            if (files == null || !files.Any(FileRules.IsImage)) return false;
+            if (RopeImageDropped == null || !OleDropHasImage(args)) return false;
             Point point = args.GetPosition(this);
             return point.X >= 0 && point.X < (ActualWidth > 0 ? ActualWidth : Width) - 284;
+        }
+
+        static bool OleDropHasImage(DragEventArgs args)
+        {
+            if (!args.Data.GetDataPresent(DataFormats.FileDrop)) return false;
+            string[] files = args.Data.GetData(DataFormats.FileDrop) as string[];
+            return files != null && files.Any(FileRules.IsImage);
         }
 
         // 拖拽悬停时的接图提示：虚线框加 10% 蒙层标出悬挂区域；文案水平居中固定在底部，
@@ -841,10 +862,17 @@ namespace ScreenLine
             WindowsNative.Rectangle bounds;
             WindowsNative.GetWindowRect(Handle, out bounds);
             bool inside = cursor.X >= bounds.Left && cursor.X < bounds.Right && cursor.Y >= Display.Bounds.Top && cursor.Y < bounds.Bottom;
-            // 拖拽时按住左键：让绳子区域接收文件拖放，而不是穿透到下层应用。
-            bool dragging = Revealed && down && inside;
+            if (!down) { dropArmed = false; dropActive = false; dropRejected = false; }
+            // 拖拽时按住左键：临时隐形接管绳子区域等待 OLE 拖拽事件；确认含图片才显示提示，
+            // 非图片拖入立即恢复穿透，拖动窗口等原生拖动收不到拖拽事件，超时自动恢复。
+            if (Revealed && down && inside && !dropRejected && !dropActive)
+            {
+                if (!dropArmed) { dropArmed = true; dropArmSince = now; }
+                else if (now - dropArmSince > TimeSpan.FromMilliseconds(250)) { dropArmed = false; dropRejected = true; }
+            }
+            bool dragging = Revealed && down && inside && (dropActive || (dropArmed && !dropRejected));
             dropVeil.Background = dragging ? dropVeilBrush : Brushes.Transparent;
-            dropFrame.Visibility = dragging && InRopeZone(cursor) ? Visibility.Visible : Visibility.Collapsed;
+            dropFrame.Visibility = dropActive && InRopeZone(cursor) ? Visibility.Visible : Visibility.Collapsed;
             WindowsNative.PassMouse(Handle, !Revealed || (!over && !dragging && !busy));
             if (!Revealed) return;
             if (previewCandidate != null && (!OverCard(previewCandidate, cursor) || previewCandidate.Busy))
