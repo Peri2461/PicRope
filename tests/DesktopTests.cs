@@ -457,6 +457,11 @@ namespace ScreenLine.Tests
             Check(controller.Gallery.Collected.Count == 2, "手动挂图模式仍合并同次截图的双来源通知");
             controller.ShowBasket(); basket = controller.Basket;
             Check(basket.VisibleCount == 2, "收集的历史截图可在待挂列表挑选");
+            basket.SelectAllButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Check(basket.SelectedCount == 2 && (string)basket.SelectAllButton.Content == "取消全选", "全选按钮选中当前页全部待挂图片");
+            basket.SelectAllButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Check(basket.SelectedCount == 0 && (string)basket.SelectAllButton.Content == "全选", "再次点击全选按钮取消当前页选择");
+            await Task.Delay(250);
             await ClickBasketControl(basket.ChoiceFor(first));
             await ClickBasketControl(basket.ChoiceFor(owned));
             await Until(() => basket.Preview.Source != null);
@@ -1733,6 +1738,17 @@ namespace ScreenLine.Tests
             controller.Shelf.Reveal(true, false, 0);
             await Task.Delay(700);
             var card = controller.Shelf.CardFor(path);
+            Point previewCenter = card.Surface.PointToScreen(new Point(card.Surface.ActualWidth / 2, card.Surface.ActualHeight / 2));
+            SetCursorPos(600, 700);
+            await Task.Delay(120);
+            SetCursorPos((int)previewCenter.X, (int)previewCenter.Y);
+            await Task.Delay(150);
+            SetCursorPos((int)previewCenter.X + 1, (int)previewCenter.Y);
+            await Until(() => controller.Shelf.PreviewVisible);
+            Check(controller.Shelf.PreviewVisible && controller.Shelf.LargePreview.ImageSource != null, "悬停图片显示原图大图预览");
+            SetCursorPos(600, 700);
+            await Until(() => !controller.Shelf.PreviewVisible);
+            Check(!controller.Shelf.PreviewVisible, "移开图片后关闭大图预览");
             var hint = new ToolTip { Content = "从绳子上取下，保留原文件", PlacementTarget = card.Surface };
             try
             {
@@ -1748,9 +1764,10 @@ namespace ScreenLine.Tests
             mouse_event(16, 0, 0, 0, UIntPtr.Zero);
             await Until(() => card.ActionMenu.IsOpen && card.ActionMenu.ActualHeight > 0);
             Check(card.ActionMenu.Actions.Count == 6 && !card.ActionMenu.Actions.ContainsKey(ShotAction.Copy), "图片右键保留六个操作，复制直接使用左键");
+            Check(!card.ActionMenu.BulkMenu.IsEnabled, "绳上只有一张图片时批量取下整体置灰");
             Check(card.ActionMenu.Actions.Values.All(button => !button.IsKeyboardFocused), "右键展开时不默认选中任何操作");
             Check(card.ActionMenu.IsKeyboardFocused, "菜单容器接收键盘输入，操作项保持未选中");
-            Check(card.ActionMenu.ActualWidth <= 220 && card.ActionMenu.ActualHeight < 290, "图片菜单以窄版单列显示，整体尺寸紧凑");
+            Check(card.ActionMenu.ActualWidth <= 220 && card.ActionMenu.ActualHeight < 330, "图片菜单以窄版单列显示，包含批量取下后仍保持紧凑");
             var openButton = card.ActionMenu.Actions[ShotAction.Open];
             var editButton = card.ActionMenu.Actions[ShotAction.Edit];
             var openBounds = openButton.TransformToAncestor(card.ActionMenu).TransformBounds(new Rect(openButton.RenderSize));
@@ -1882,6 +1899,48 @@ namespace ScreenLine.Tests
             await ClickMenu(trayMenu.TextButton);
             Check(!trayMenu.IsOpen && controller.TextWindow != null, "文字信封快捷入口打开文字列表并关闭菜单");
             controller.TextWindow.Close();
+            await CheckBulkHover(store);
+        }
+
+        static async Task CheckBulkHover(StateStore store)
+        {
+            string[] paths =
+            {
+                Path.Combine(store.Inbox, "悬停批量一.png"),
+                Path.Combine(store.Inbox, "悬停批量二.png"),
+                Path.Combine(store.Inbox, "悬停批量三.png")
+            };
+            for (int index = 0; index < paths.Length; index++)
+            {
+                byte[] content = Asset("悬停批量 " + (index + 1), "批量取下 · 悬停高亮", Color.FromRgb((byte)(80 + index * 40), 120, 160));
+                File.WriteAllBytes(paths[index], content);
+                controller.Gallery.Add(paths[index], ImageContent.Decode(content));
+            }
+            controller.Shelf.Reveal(true, true, 0);
+            await Until(() => controller.Gallery.Items.Count == paths.Length);
+            await Task.Delay(700);
+            var card = controller.Shelf.CardFor(paths[1]);
+            Point cardPoint = card.Surface.PointToScreen(new Point(card.Surface.ActualWidth / 2, card.Surface.ActualHeight / 2));
+            SetCursorPos((int)cardPoint.X, (int)cardPoint.Y);
+            await Task.Delay(120);
+            card.ActionMenu.IsOpen = true;
+            await Until(() => card.ActionMenu.IsOpen && card.ActionMenu.ActualHeight > 0);
+            Check(card.ActionMenu.BulkMenu.IsEnabled, "多张图片时批量取下可用");
+            Point bulkPoint = card.ActionMenu.BulkMenu.PointToScreen(new Point(card.ActionMenu.BulkMenu.ActualWidth / 2, card.ActionMenu.BulkMenu.ActualHeight / 2));
+            SetCursorPos((int)bulkPoint.X, (int)bulkPoint.Y);
+            await Task.Delay(150);
+            SetCursorPos((int)bulkPoint.X + 1, (int)bulkPoint.Y);
+            await Until(() => card.ActionMenu.BulkMenu.IsSubmenuOpen);
+            await Task.Delay(120);
+            var row = (Border)card.ActionMenu.BulkMenu.Template.FindName("Surface", card.ActionMenu.BulkMenu);
+            var hovered = row.Background as SolidColorBrush;
+            Check(hovered != null && hovered.Color == Color.FromRgb(0xF0, 0xF3, 0xF7), "悬停批量取下时显示高亮");
+            SetCursorPos(600, 700);
+            await Until(() => !card.ActionMenu.BulkMenu.IsSubmenuOpen);
+            await Task.Delay(120);
+            var rested = row.Background as SolidColorBrush;
+            Check(rested == null || rested.Color != Color.FromRgb(0xF0, 0xF3, 0xF7), "移开鼠标后批量取下行清除高亮");
+            card.ActionMenu.IsOpen = false;
         }
 
         static async Task ClickMenu(FrameworkElement entry)
@@ -1933,6 +1992,7 @@ namespace ScreenLine.Tests
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(bitmap));
             string path = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "previews", "右键菜单", "实际菜单.png"));
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
             using (var output = File.Create(path)) encoder.Save(output);
             encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
             using (var output = File.Create(Path.Combine(Path.GetDirectoryName(path), "图片菜单实装.png"))) encoder.Save(output);
