@@ -34,6 +34,10 @@ namespace ScreenLine
         readonly Action<ShotAction, CaptureItem> act;
         readonly ScrollViewer viewport = new ScrollViewer();
         readonly Canvas content = new Canvas();
+        // 分层窗口按像素透明度命中测试；拖拽时用几乎不可见的底色让绳子接住文件。
+        readonly Border dropVeil = new Border { Background = Brushes.Transparent, IsHitTestVisible = false };
+        static readonly Brush dropVeilBrush = LightTheme.Brush("#02FFFFFF");
+        readonly Grid dropFrame;
         readonly System.Windows.Shapes.Path rope = new System.Windows.Shapes.Path();
         readonly LinearGradientBrush edgeMask = new LinearGradientBrush(new GradientStopCollection {
             new GradientStop(Colors.White, 0), new GradientStop(Colors.White, 0.03),
@@ -45,6 +49,8 @@ namespace ScreenLine
         readonly TextBlock helpTitle = new TextBlock();
         readonly TextBlock helpDetail = new TextBlock();
         readonly TextBlock basketCount = new TextBlock();
+        readonly Border basketBadge = new Border();
+        readonly Border basketDropChip = new Border { Visibility = Visibility.Collapsed };
         readonly Image basketImage = new Image { Width = 112, Stretch = Stretch.Uniform, IsHitTestVisible = false };
         readonly RotateTransform basketTurn = new RotateTransform();
         readonly ScaleTransform basketCounterScale = new ScaleTransform(1, 1);
@@ -54,6 +60,8 @@ namespace ScreenLine
         readonly Button openBasket = new Button();
         internal readonly Button BasketButton = new Button();
         public event Action BasketRequested;
+        public event Action<string> BasketImageDropped;
+        public event Func<string, Task> RopeImageDropped;
         internal readonly Button TextButton = new Button();
         readonly EnvelopeIcon envelopeImage = new EnvelopeIcon { Width = 96, Height = 86, Stretch = Stretch.Fill, IsHitTestVisible = false };
         readonly ClothesClip textClip = new ClothesClip();
@@ -139,9 +147,12 @@ namespace ScreenLine
                 }
                 e.Handled = true;
             };
-            var root = new Grid();
+            var root = new Grid { AllowDrop = true, Background = Brushes.Transparent };
             var line = new Canvas { Margin = new Thickness(24, 0, 24, 0), RenderTransform = slide, IsHitTestVisible = false };
-            line.Children.Add(rope); root.Children.Add(line);
+            dropFrame = BuildDropFrame();
+            dropVeil.Padding = new Thickness(12, 8, 284, 10);
+            dropVeil.Child = dropFrame;
+            line.Children.Add(rope); root.Children.Add(dropVeil); root.Children.Add(line);
             root.Children.Add(viewport); Content = root;
             Appearance = LineTheme.FromId(gallery.Store.State.Theme);
             RopeLine.Apply(rope, Appearance);
@@ -157,17 +168,56 @@ namespace ScreenLine
             basketCount.FontFamily = new FontFamily("Segoe UI"); basketCount.FontSize = 13; basketCount.FontWeight = FontWeights.SemiBold;
             basketCount.Foreground = Brushes.White; basketCount.TextAlignment = TextAlignment.Center;
             basketCount.RenderTransformOrigin = new Point(0.5, 0.5); basketCount.RenderTransform = basketCounterScale;
-            basketBody.Children.Add(new Border { Child = basketCount, Background = LightTheme.Brush("#D920242C"),
-                BorderBrush = LightTheme.Brush("#40FFFFFF"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6),
-                Padding = new Thickness(6, 1, 6, 2), MinWidth = 26, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6, 0, 0) });
+            basketBadge.Child = basketCount; basketBadge.Background = LightTheme.Brush("#D920242C");
+            basketBadge.BorderBrush = LightTheme.Brush("#40FFFFFF"); basketBadge.BorderThickness = new Thickness(1); basketBadge.CornerRadius = new CornerRadius(6);
+            basketBadge.Padding = new Thickness(6, 1, 6, 2); basketBadge.MinWidth = 26;
+            basketBadge.HorizontalAlignment = HorizontalAlignment.Center; basketBadge.Margin = new Thickness(0, 6, 0, 0);
+            basketBody.Children.Add(basketBadge);
             BasketButton.Content = basketBody; BasketButton.Width = 144; BasketButton.Height = 154; BasketButton.Focusable = false; BasketButton.Cursor = Cursors.Hand;
-            BasketButton.ToolTip = "打开图片篮子";
+            BasketButton.ToolTip = "打开图片篮子；把图片拖到这里可直接收进待挂";
             BasketButton.Template = (ControlTemplate)System.Windows.Markup.XamlReader.Parse("<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' TargetType='Button'><Border Background='#02FFFFFF'><ContentPresenter HorizontalAlignment='Center' VerticalAlignment='Top'/></Border></ControlTemplate>");
             BasketButton.Click += delegate { if (BasketRequested != null) BasketRequested(); };
+            BasketButton.AllowDrop = true;
+            BasketButton.DragOver += delegate(object sender, DragEventArgs args)
+            {
+                args.Effects = args.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
+                args.Handled = true;
+            };
+            BasketButton.DragEnter += delegate(object sender, DragEventArgs args)
+            {
+                if (!args.Data.GetDataPresent(DataFormats.FileDrop)) return;
+                // 拖图悬停：篮子轻轻摆动，徽标亮起主题色，底部出现收进待挂的提示。
+                basketMotion.Target = 1.3; StartRendering();
+                basketBadge.SetResourceReference(Border.BackgroundProperty, "Ui.Accent");
+                basketDropChip.Visibility = Visibility.Visible;
+            };
+            Action resetBasketDrag = delegate
+            {
+                basketMotion.Target = 0;
+                basketBadge.Background = LightTheme.Brush("#D920242C");
+                basketDropChip.Visibility = Visibility.Collapsed;
+            };
+            BasketButton.DragLeave += delegate(object sender, DragEventArgs args) { resetBasketDrag(); };
+            BasketButton.Drop += delegate(object sender, DragEventArgs args)
+            {
+                args.Handled = true;
+                resetBasketDrag();
+                if (!args.Data.GetDataPresent(DataFormats.FileDrop)) return;
+                foreach (string file in (string[])args.Data.GetData(DataFormats.FileDrop)) AcceptBasketDrop(file);
+            };
             BasketButton.MouseEnter += delegate { basketMotion.Target = 1.3; StartRendering(); };
             BasketButton.MouseLeave += delegate { basketMotion.Target = 0; };
             System.Windows.Automation.AutomationProperties.SetName(BasketButton, "打开图片篮子");
             basket.Children.Add(BasketButton); Canvas.SetLeft(BasketButton, 6); Canvas.SetTop(BasketButton, 20);
+            var basketChipHolder = new Grid { Width = 156 };
+            basketDropChip.Padding = new Thickness(10, 5, 10, 6); basketDropChip.CornerRadius = new CornerRadius(9);
+            basketDropChip.HorizontalAlignment = HorizontalAlignment.Center;
+            UiTheme.Paint(basketDropChip, Border.BackgroundProperty, "Ui.SurfaceGlass");
+            UiTheme.Paint(basketDropChip, Border.BorderBrushProperty, "Ui.Border");
+            basketDropChip.Child = UiTheme.Paint(new TextBlock { Text = "松开，收进待挂", FontSize = 12, FontWeight = FontWeights.SemiBold }, TextBlock.ForegroundProperty, "Ui.Accent");
+            basketChipHolder.Children.Add(basketDropChip);
+            Canvas.SetTop(basketChipHolder, 190);
+            basket.Children.Add(basketChipHolder);
             root.Children.Add(basket);
 
             var textHolder = new Canvas { Width = 112, Height = 220, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 166, 0), RenderTransform = slide };
@@ -215,6 +265,18 @@ namespace ScreenLine
             hint.BorderThickness = new Thickness(1);
             hint.Effect = new DropShadowEffect { BlurRadius = 16, ShadowDepth = 3, Opacity = 0.18 };
             content.Children.Add(hint);
+
+            root.DragOver += delegate(object sender, DragEventArgs args)
+            {
+                args.Effects = DropAllowed(args) ? DragDropEffects.Copy : DragDropEffects.None;
+                args.Handled = true;
+            };
+            root.Drop += async delegate(object sender, DragEventArgs args)
+            {
+                args.Handled = true;
+                if (!DropAllowed(args)) return;
+                foreach (string file in (string[])args.Data.GetData(DataFormats.FileDrop)) await AcceptRopeDrop(file);
+            };
 
             SourceInitialized += delegate
             {
@@ -396,6 +458,64 @@ namespace ScreenLine
         {
             textCount.Text = gallery.Store.State.Texts.Count.ToString();
             AutomationProperties.SetItemStatus(TextButton, textCount.Text + " 条文字");
+        }
+
+        // 拖到篮子上的图片收进待挂；绳子上的图拖回篮子则是取下放篮子。
+        internal void AcceptBasketDrop(string file)
+        {
+            if (!FileRules.IsImage(file)) return;
+            foreach (var item in gallery.Items)
+            {
+                if (!FileRules.SameFile(item.Path, file)) continue;
+                act(ShotAction.Remove, item);
+                return;
+            }
+            if (BasketImageDropped != null) BasketImageDropped(file);
+        }
+
+        // 绳子本体接住图片文件；右侧篮子与文字入口沿用各自的拖放行为。
+        bool DropAllowed(DragEventArgs args)
+        {
+            if (RopeImageDropped == null || !args.Data.GetDataPresent(DataFormats.FileDrop)) return false;
+            string[] files = args.Data.GetData(DataFormats.FileDrop) as string[];
+            if (files == null || !files.Any(FileRules.IsImage)) return false;
+            Point point = args.GetPosition(this);
+            return point.X >= 0 && point.X < (ActualWidth > 0 ? ActualWidth : Width) - 284;
+        }
+
+        // 拖拽悬停时的接图提示：虚线框加 10% 蒙层标出悬挂区域；文案水平居中固定在底部，
+        // 系统拖拽虚影画在所有窗口之上且跟随指针，文案放低处避开虚影才不会被遮挡。
+        Grid BuildDropFrame()
+        {
+            var wash = new System.Windows.Shapes.Rectangle { RadiusX = 14, RadiusY = 14, Opacity = 0.1 };
+            UiTheme.Paint(wash, System.Windows.Shapes.Shape.FillProperty, "Ui.Accent");
+            var outline = new System.Windows.Shapes.Rectangle {
+                RadiusX = 14, RadiusY = 14, StrokeThickness = 1.6, StrokeDashArray = new DoubleCollection { 4, 3 }, StrokeDashCap = PenLineCap.Round
+            };
+            UiTheme.Paint(outline, System.Windows.Shapes.Shape.StrokeProperty, "Ui.Accent");
+            var chip = new Border {
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(0, 0, 0, 14), CornerRadius = new CornerRadius(9), Padding = new Thickness(12, 6, 12, 7), BorderThickness = new Thickness(1)
+            };
+            UiTheme.Paint(chip, Border.BackgroundProperty, "Ui.SurfaceGlass");
+            UiTheme.Paint(chip, Border.BorderBrushProperty, "Ui.Border");
+            chip.Child = UiTheme.Paint(new TextBlock { Text = "松开，挂到绳子上", FontSize = 13, FontWeight = FontWeights.SemiBold }, TextBlock.ForegroundProperty, "Ui.Accent");
+            var frame = new Grid { Visibility = Visibility.Collapsed };
+            frame.Children.Add(wash); frame.Children.Add(outline); frame.Children.Add(chip);
+            return frame;
+        }
+
+        bool InRopeZone(WindowsNative.Point cursor)
+        {
+            if (ActualWidth <= 0) return false;
+            Point local = PointFromScreen(new Point(cursor.X, cursor.Y));
+            return local.X >= 0 && local.X < ActualWidth - 284;
+        }
+
+        internal async Task AcceptRopeDrop(string file)
+        {
+            if (RopeImageDropped == null || !FileRules.IsImage(file)) return;
+            await RopeImageDropped(file);
         }
 
         void UpdateEdgeMask()
@@ -718,7 +838,14 @@ namespace ScreenLine
             else edgeSince = DateTime.MaxValue;
             if (WindowsNative.FullScreen(Display, Handle)) { Reveal(false, false, 0); return; }
             bool busy = cards.Values.Any(c => c.Busy);
-            WindowsNative.PassMouse(Handle, !Revealed || (!over && !busy));
+            WindowsNative.Rectangle bounds;
+            WindowsNative.GetWindowRect(Handle, out bounds);
+            bool inside = cursor.X >= bounds.Left && cursor.X < bounds.Right && cursor.Y >= Display.Bounds.Top && cursor.Y < bounds.Bottom;
+            // 拖拽时按住左键：让绳子区域接收文件拖放，而不是穿透到下层应用。
+            bool dragging = Revealed && down && inside;
+            dropVeil.Background = dragging ? dropVeilBrush : Brushes.Transparent;
+            dropFrame.Visibility = dragging && InRopeZone(cursor) ? Visibility.Visible : Visibility.Collapsed;
+            WindowsNative.PassMouse(Handle, !Revealed || (!over && !dragging && !busy));
             if (!Revealed) return;
             if (previewCandidate != null && (!OverCard(previewCandidate, cursor) || previewCandidate.Busy))
             {
@@ -733,11 +860,8 @@ namespace ScreenLine
                 foreach (var card in cards.Values) card.Breeze(random.NextDouble() * 0.35, direction * (1.6 + random.NextDouble() * 1.8));
                 StartRendering();
             }
-            WindowsNative.Rectangle bounds;
-            WindowsNative.GetWindowRect(Handle, out bounds);
-            bool inside = cursor.X >= bounds.Left && cursor.X < bounds.Right && cursor.Y >= Display.Bounds.Top && cursor.Y < bounds.Bottom;
             if (inside) pinned = false;
-            if (inside || pinned || busy || viewing || ChoosingAppearance || ChoosingBasket || ChoosingTexts || now < peekUntil) awaySince = DateTime.MaxValue;
+            if (inside || pinned || down || busy || viewing || ChoosingAppearance || ChoosingBasket || ChoosingTexts || now < peekUntil) awaySince = DateTime.MaxValue;
             else
             {
                 if (awaySince == DateTime.MaxValue) awaySince = now;

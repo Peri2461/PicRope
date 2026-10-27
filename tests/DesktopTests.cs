@@ -210,6 +210,19 @@ namespace ScreenLine.Tests
             SetCursorPos(bounds.Left + 10, bounds.Top + 110);
             await Task.Delay(150);
             Check(WindowFromPoint(WindowsNative.Cursor()) != controller.Shelf.Handle, "透明区域允许鼠标点击穿透");
+            testContext.Left = bounds.Left; testContext.Top = bounds.Top;
+            await Task.Delay(200);
+            var dropFrame = (Grid)typeof(ShelfWindow).GetField("dropFrame", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(controller.Shelf);
+            SetCursorPos(bounds.Left + 10, bounds.Top + 110);
+            mouse_event(2, 0, 0, 0, UIntPtr.Zero);
+            await Task.Delay(150);
+            Check(WindowFromPoint(WindowsNative.Cursor()) == controller.Shelf.Handle, "按住左键拖动时绳子空白区域可以接收文件");
+            Check(dropFrame.Visibility == Visibility.Visible, "拖拽悬停时绳子显示接图提示框");
+            mouse_event(4, 0, 0, 0, UIntPtr.Zero);
+            await Task.Delay(150);
+            Check(WindowFromPoint(WindowsNative.Cursor()) != controller.Shelf.Handle, "松开鼠标后透明区域恢复点击穿透");
+            Check(dropFrame.Visibility == Visibility.Collapsed, "松开鼠标后接图提示框隐藏");
+            testContext.Left = 800; testContext.Top = 400;
             await CheckVisibility();
 
             string copiedFile = await DragTo(folderImage, Path.Combine(root, "drop-copy"), false);
@@ -511,7 +524,66 @@ namespace ScreenLine.Tests
             Check(((BitmapSource)basket.Preview.Source).PixelWidth == 540 && basket.SelectedCount == 2, "长截图在右侧保持完整比例预览，多选状态保持正确");
             await Task.Delay(500);
             ExportBasketPreview(basket);
-            Check(!File.Exists(Path.Combine(store.Root, "error.log")), "图片篓完整操作过程没有运行错误");
+
+            controller.Shelf.Reveal(true, true, 0);
+            await Task.Delay(400);
+            string dragged = Path.Combine(Path.GetDirectoryName(watched), "拖进篮子.png");
+            File.WriteAllBytes(dragged, Asset("拖进篮子", "复制副本 · 原图不动", Color.FromRgb(80, 120, 96)));
+            controller.Shelf.AcceptBasketDrop(dragged);
+            await Task.Delay(400);
+            var dropped = controller.Gallery.Collected.Single(entry => Path.GetFileName(entry.Path) == "拖进篮子.png");
+            Check(FileRules.IsInside(dropped.Path, store.Inbox) && File.Exists(dragged) && !controller.Gallery.Contains(dropped.Path),
+                "拖到篮子上的图片复制为副本进入待挂");
+            basket.Close();
+
+            var dropSurface = (Grid)controller.Shelf.Content;
+            Check(dropSurface.AllowDrop, "绳子区域可以接收文件拖放");
+            string ropeSource = Path.Combine(Path.GetDirectoryName(watched), "拖上绳子.png");
+            byte[] ropeBytes = Asset("拖上绳子", "复制副本 · 直接挂起", Color.FromRgb(80, 120, 96));
+            File.WriteAllBytes(ropeSource, ropeBytes);
+            var dragData = new DataObject(DataFormats.FileDrop, new[] { ropeSource });
+            Point dropPoint = new Point(120, 70);
+            var dragOver = DragEvent(dragData, dropSurface, dropPoint, DragDrop.DragOverEvent);
+            dropSurface.RaiseEvent(dragOver);
+            Check(dragOver.Effects == DragDropEffects.Copy && dragOver.Handled, "把图片拖到绳子上显示复制效果");
+            var sideOver = DragEvent(dragData, dropSurface, new Point(controller.Shelf.ActualWidth - 20, 70), DragDrop.DragOverEvent);
+            dropSurface.RaiseEvent(sideOver);
+            Check(sideOver.Effects == DragDropEffects.None, "拖到右侧篮子和文字入口上方时不按绳子处理");
+            dropSurface.RaiseEvent(DragEvent(dragData, dropSurface, dropPoint, DragDrop.DropEvent));
+            await Until(() => controller.Gallery.Items.Any(entry => Path.GetFileName(entry.Path) == "拖上绳子.png"));
+            var hungDrop = controller.Gallery.Items.Single(entry => Path.GetFileName(entry.Path) == "拖上绳子.png");
+            Check(FileRules.IsInside(hungDrop.Path, store.Inbox) && File.Exists(hungDrop.Path) && !FileRules.SameFile(hungDrop.Path, ropeSource),
+                "拖到绳子上像上传一样复制副本并直接挂起");
+            Check(File.Exists(ropeSource) && File.ReadAllBytes(ropeSource).SequenceEqual(ropeBytes), "拖上绳子不移动或修改原图");
+            int hungCount = controller.Gallery.Items.Count;
+            await controller.Shelf.AcceptRopeDrop(hungDrop.Path);
+            Check(controller.Gallery.Items.Count == hungCount
+                && controller.Gallery.Collected.Count(entry => FileRules.SameFile(entry.Path, hungDrop.Path)) == 1,
+                "再次拖上已经挂着的图片不会生成重复副本");
+            string pendingDrop = Path.Combine(store.Inbox, "待挂拖上绳.png");
+            byte[] pendingBytes = Asset("待挂图片", "直接上绳", Color.FromRgb(150, 96, 60));
+            File.WriteAllBytes(pendingDrop, pendingBytes);
+            controller.Gallery.Collect(pendingDrop, ImageContent.Decode(pendingBytes));
+            await controller.Shelf.AcceptRopeDrop(pendingDrop);
+            Check(controller.Gallery.Contains(pendingDrop)
+                && controller.Gallery.Collected.Count(entry => FileRules.SameFile(entry.Path, pendingDrop)) == 1,
+                "收集目录里的待挂图片拖上绳子直接挂起，不额外复制");
+            string note = Path.Combine(Path.GetDirectoryName(watched), "说明文本.txt");
+            File.WriteAllText(note, "不是图片");
+            var noteOver = DragEvent(new DataObject(DataFormats.FileDrop, new[] { note }), dropSurface, dropPoint, DragDrop.DragOverEvent);
+            dropSurface.RaiseEvent(noteOver);
+            Check(noteOver.Effects == DragDropEffects.None, "非图片文件拖到绳子上不会挂图");
+            var basketBadge = (Border)typeof(ShelfWindow).GetField("basketBadge", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(controller.Shelf);
+            var basketChip = (Border)typeof(ShelfWindow).GetField("basketDropChip", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(controller.Shelf);
+            controller.Shelf.BasketButton.RaiseEvent(DragEvent(dragData, controller.Shelf.BasketButton, new Point(70, 80), DragDrop.DragEnterEvent));
+            Check(basketChip.Visibility == Visibility.Visible && basketBadge.Background == (Brush)Application.Current.Resources["Ui.Accent"],
+                "拖图悬停篮子时显示收进待挂提示并亮起徽标");
+            controller.Shelf.BasketButton.RaiseEvent(DragEvent(dragData, controller.Shelf.BasketButton, new Point(70, 80), DragDrop.DragLeaveEvent));
+            Check(basketChip.Visibility == Visibility.Collapsed
+                && ((SolidColorBrush)basketBadge.Background).Color == (Color)ColorConverter.ConvertFromString("#D920242C"),
+                "离开篮子后提示隐藏并恢复徽标底色");
+            await Until(() => !controller.Shelf.MotionWindows.Any());
+            Check(!File.Exists(Path.Combine(store.Root, "error.log")), "图片篓与拖放完整操作过程没有运行错误");
         }
 
         static async Task ClickBasketControl(FrameworkElement control)
@@ -1476,6 +1548,14 @@ namespace ScreenLine.Tests
         {
             await WindowsClipboard.Write(new DataObject(format, new MemoryStream(bytes)));
             lastTestSequence = WindowsNative.GetClipboardSequenceNumber();
+        }
+
+        static DragEventArgs DragEvent(IDataObject data, DependencyObject target, Point point, RoutedEvent routedEvent)
+        {
+            var constructor = typeof(DragEventArgs).GetConstructors(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Single();
+            var args = (DragEventArgs)constructor.Invoke(new object[] { data, DragDropKeyStates.LeftMouseButton, DragDropEffects.Copy, target, point });
+            args.RoutedEvent = routedEvent;
+            return args;
         }
 
         static async Task<string> DragTo(string source, string destination, bool move)
